@@ -14,7 +14,6 @@
  *
  *    e-posta 191 karakter   → sunucu REDDETTİ, istemci KABUL ETTİ
  *    şifre   73  karakter   → sunucu REDDETTİ, istemci KABUL ETTİ
- *    web adresi 268 karakter→ sunucu REDDETTİ, istemci KABUL ETTİ
  *    mesaj 495 harf+20 boşluk → sunucu KABUL ETTİ, istemci REDDETTİ
  *    ad soyad 60 astral harf  → sunucu KABUL ETTİ, istemci REDDETTİ
  *    kullanıcı adı "şş"       → iki taraf FARKLI hata mesajı verdi
@@ -175,16 +174,6 @@ function validation_rules(): array
                 'format'   => 'Geçerli bir tarih giriniz.',
                 'future'   => 'Doğum tarihi gelecekte olamaz.',
                 'age'      => 'Bu formu doldurmak için en az {age} yaşında olmalısınız.',
-            ],
-        ],
-
-        'website' => [
-            'required'  => false,
-            'max'       => 255,
-            'messages'  => [
-                'length'   => 'Web adresi en fazla {max} karakter olabilir.',
-                'format'   => 'Geçerli bir web adresi giriniz.',
-                'host'     => 'Geçerli bir web adresi giriniz (örn. ornek.com).',
             ],
         ],
 

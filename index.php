@@ -138,13 +138,6 @@ $clientRules = client_rules();
                             </div>
 
                             <div class="mb-3 mt-3">
-                                <label for="website" class="form-label">Web Sitesi</label>
-                                <input type="text" id="website" name="website" class="form-control" placeholder="ornek.com">
-                                <div class="form-text">Boş bırakılabilir; "https://" yazmasanız da otomatik eklenir.</div>
-                                <div class="invalid-feedback" data-error-for="website"></div>
-                            </div>
-
-                            <div class="mb-3">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <label for="message" class="form-label mb-0">Mesaj</label>
                                     <small class="text-muted" id="message_counter">0 / <?= (int) $clientRules['message']['max'] ?></small>
@@ -177,18 +170,9 @@ $clientRules = client_rules();
             </div>
 
             <!-- ================================================================
-                 YAN PANEL: son gönderimler + doğrulama katmanları özeti
+                 YAN PANEL: doğrulama katmanları özeti
                  ================================================================ -->
             <div class="col-lg-4">
-                <div class="cy-card mb-4">
-                    <div class="cy-card__body">
-                        <h2 class="h6 mb-3">Son Gönderimler</h2>
-                        <ul class="list-group list-group-flush" id="submission_list">
-                            <li class="list-group-item text-muted">Yükleniyor…</li>
-                        </ul>
-                    </div>
-                </div>
-
                 <div class="cy-card">
                     <div class="cy-card__body">
                         <h2 class="h6 mb-2">İki Katmanlı Doğrulama</h2>

@@ -97,13 +97,9 @@ ini_set('display_errors', APP_DEBUG ? '1' : '0');
  *    olarak İŞLEMCİYİ korur: her başarılı gönderim bir password_hash()
  *    çağırır ve bu makinede ÖLÇÜLDÜ — bcrypt cost 10 ≈ 116 ms CPU,
  *    gönderimin toplam süresinin (~128 ms) yaklaşık %90'ı.
- *
- *  LIST  (60/dk): Sayfa açılışında ve her başarılı kayıttan sonra
- *    çağrılır; ucuz bir sorgudur (ölçüldü: 100.000 kayıtta ~7 ms).
  * ================================================================== */
 define('RATE_LIMIT_CHECK',  [40, 60]);
 define('RATE_LIMIT_SUBMIT', [5,  60]);
-define('RATE_LIMIT_LIST',   [60, 60]);
 
 try {
     $db = new PDO(

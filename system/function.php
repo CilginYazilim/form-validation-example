@@ -368,48 +368,6 @@ function validate_birth_date(?string $value): array
 }
 
 /** @return array{0:?string,1:?string} */
-function validate_website(?string $value): array
-{
-    $value = trim((string) $value);
-
-    if ($value === '') {
-        return [null, null];
-    }
-
-    // Kullanıcı "ornek.com" yazsa bile makul bir URL üretilir.
-    if (!preg_match('#^https?://#i', $value)) {
-        $value = 'https://' . $value;
-    }
-
-    // Uzunluk, şema EKLENDİKTEN sonra ölçülür — veritabanına giden
-    // değer budur.
-    $error = rule_check('website', $value);
-
-    if ($error !== null) {
-        return [$value, $error];
-    }
-
-    if (filter_var($value, FILTER_VALIDATE_URL) === false) {
-        return [$value, rule_message('website', 'format')];
-    }
-
-    /* FILTER_VALIDATE_URL'İN BİLİNEN ZAYIFLIĞI: "https://hicbirsey"
-     * gibi NOKTASIZ, tek kelimelik bir "sunucu adı" bile sözdizimsel
-     * olarak GEÇERLİ bir URL sayılır (PHP'nin RFC 3986 uyumlu
-     * ayrıştırıcısı, bunun gerçek bir alan adı olup olmadığını
-     * umursamaz). Ek olarak HOST kısmının en az bir NOKTA içermesini
-     * zorunlu kılıyoruz. Tarayıcının URL sınıfı da aynı şeyi kabul
-     * eder; bu yüzden aynı ek kontrol istemcide de vardır. */
-    $host = parse_url($value, PHP_URL_HOST);
-
-    if ($host === null || $host === false || !str_contains($host, '.')) {
-        return [$value, rule_message('website', 'host')];
-    }
-
-    return [$value, null];
-}
-
-/** @return array{0:?string,1:?string} */
 function validate_message(?string $value): array
 {
     /* trim(): istemci de artık AYNI şeyi yapar. Eskiden yapmıyordu ve
@@ -458,33 +416,3 @@ function username_exists(PDO $db, string $username): bool
 }
 
 
-/* =====================================================================
- *  BÖLÜM 6 – VERİ ERİŞİMİ VE BİÇİMLENDİRME
- * ================================================================== */
-
-function fetch_recent_submissions(PDO $db, int $limit = 20): array
-{
-    $stmt = $db->prepare(
-        'SELECT id, full_name, username, created_at FROM submissions ORDER BY id DESC LIMIT :limit'
-    );
-    // LIMIT parametresi PDO::PARAM_INT ile bağlanmalıdır; aksi hâlde
-    // PDO onu string olarak gönderir ve MySQL "LIMIT '20'" söz dizimi
-    // hatası verir (EMULATE_PREPARES kapalıyken).
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->execute();
-
-    return $stmt->fetchAll();
-}
-
-function format_date(?string $value): string
-{
-    if (empty($value)) {
-        return '-';
-    }
-
-    try {
-        return (new DateTimeImmutable($value))->format('d.m.Y H:i');
-    } catch (Exception $e) {
-        return (string) $value;
-    }
-}

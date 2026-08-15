@@ -15,8 +15,8 @@
  *  sınır burada YAZILI DEĞİLDİR. Hepsi sunucudaki system/rules.php'den
  *  gelir ve index.php tarafından init({ rules: … }) ile aktarılır.
  *  Sebebi ölçülmüş bir sorundur: eskiden sınırlar iki yerde elle
- *  yazılıydı ve sessizce ayrışmışlardı (e-postada 190, şifrede 72, web
- *  adresinde 255 sınırı istemcide HİÇ YOKTU; sunucu reddediyor,
+ *  yazılıydı ve sessizce ayrışmışlardı (e-postadaki 190 ve şifredeki 72
+ *  karakter sınırı istemcide HİÇ YOKTU; sunucu reddediyor,
  *  istemci kabul ediyordu). Bir sayıyı iki yerde güncellemeyi
  *  unutmak insan hatasıdır; sayıyı tek yere koymak o hatayı
  *  imkânsız kılar.
@@ -176,36 +176,6 @@ var CyValidation = (function ($) {
             // Yaş sınırı da sunucudan gelir: rules.php'de min_age'i 21
             // yaparsanız BU satır da 21'e döner, elle düzeltme gerekmez.
             if (age < rule.minAge) { return fail(rule.messages.age); }
-
-            return ok();
-        },
-
-        // bkz. function.php validate_website() — opsiyonel alan.
-        website: function (value) {
-            value = (value || '').trim();
-
-            if (value === '') { return ok(); }
-
-            var rule = ruleOf('website');
-            var url  = /^https?:\/\//i.test(value) ? value : 'https://' + value;
-
-            // Uzunluk, şema EKLENDİKTEN sonra ölçülür — sunucu da öyle yapar.
-            var result = ruleCheck('website', url);
-            if (!result.valid) { return result; }
-
-            try {
-                var parsed = new URL(url); // Tarayıcının kendi ayrıştırıcısı; geçersizse throw eder.
-
-                /* bkz. function.php validate_website() — aynı zayıflık
-                 * burada da giderilir: "https://hicbirsey" tarayıcı için
-                 * sözdizimsel olarak GEÇERLİDİR ama gerçek bir alan
-                 * adına benzemez (nokta içermez). */
-                if (parsed.hostname.indexOf('.') === -1) {
-                    return fail(rule.messages.host);
-                }
-            } catch (e) {
-                return fail(rule.messages.format);
-            }
 
             return ok();
         },
@@ -418,40 +388,6 @@ var CyValidation = (function ($) {
 
 
     /* =================================================================
-     *  SON GÖNDERİMLER LİSTESİ
-     * ============================================================== */
-    function loadSubmissions() {
-        post({ action: 'list' }).done(function (response) {
-            var $list = $('#submission_list').empty();
-
-            if (response.submissions.length === 0) {
-                $list.append($('<li>', { 'class': 'list-group-item text-muted', text: 'Henüz gönderim yok.' }));
-                return;
-            }
-
-            $.each(response.submissions, function (_, row) {
-                var $item = $('<li>', { 'class': 'list-group-item d-flex justify-content-between align-items-center' });
-
-                // .text() KULLANILIR: full_name/username kullanıcı
-                // girdisidir, .html() olsaydı XSS açığı oluşurdu.
-                $('<span>').append(
-                    $('<strong>', { text: row.full_name }),
-                    document.createTextNode(' @' + row.username)
-                ).appendTo($item);
-
-                $('<small>', { 'class': 'text-muted', text: row.created_at }).appendTo($item);
-
-                $list.append($item);
-            });
-        }).fail(function () {
-            $('#submission_list').empty().append(
-                $('<li>', { 'class': 'list-group-item text-muted', text: 'Liste yüklenemedi.' })
-            );
-        });
-    }
-
-
-    /* =================================================================
      *  OLAY BAĞLAMA
      * ============================================================== */
     function bindEvents() {
@@ -461,7 +397,7 @@ var CyValidation = (function ($) {
          * kaybettirmemek için "her tuşta doğrula" tercih edilmedi —
          * bu, kullanıcı hâlâ yazarken sürekli kırmızı/yeşil yanıp
          * sönmesini önler). */
-        ['full_name', 'phone', 'birth_date', 'website'].forEach(function (name) {
+        ['full_name', 'phone', 'birth_date'].forEach(function (name) {
             var $field = $('#' + name);
 
             $field.on('blur', function () { validateAndShow(name); });
@@ -505,7 +441,7 @@ var CyValidation = (function ($) {
             // TÜM alanları sırayla doğrula; ilk geçersiz alana odaklan.
             var fieldOrder = [
                 'full_name', 'email', 'username', 'phone',
-                'password', 'password_confirm', 'birth_date', 'website', 'message', 'terms'
+                'password', 'password_confirm', 'birth_date', 'message', 'terms'
             ];
 
             var firstInvalid = null;
@@ -539,7 +475,6 @@ var CyValidation = (function ($) {
                 updatePasswordMeter('');
                 $('#message_counter').text('0 / ' + messageMax);
                 $('#username_status, #email_status').empty();
-                loadSubmissions();
             })
             .fail(function (xhr) {
                 var res = xhr.responseJSON || {};
@@ -579,7 +514,6 @@ var CyValidation = (function ($) {
 
         $(function () {
             bindEvents();
-            loadSubmissions();
         });
     }
 

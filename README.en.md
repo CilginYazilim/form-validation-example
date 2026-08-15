@@ -23,7 +23,7 @@ Live feedback · Password strength meter · AJAX uniqueness check · TOCTOU chai
 
 <sub>The whole project in one frame: the e-mail was checked <b>live</b> and came back “already registered”,<br>
 the username shows a green <b>“✓ Müsait” (Available)</b>, the strength meter reads <b>“Çok Güçlü” (Very Strong)</b>,<br>
-and phone / birth date / website are red <b>with reasons</b>. The form answers you while you type.</sub>
+and phone and birth date are red <b>with reasons</b>. The form answers you while you type.</sub>
 
 </div>
 
@@ -31,7 +31,7 @@ and phone / birth date / website are red <b>with reasons</b>. The form answers y
 
 ## What does this project do?
 
-A ten-field registration form. Every field is validated both **instantly** (JavaScript, for user experience) and **on the server** (PHP, as the security boundary). For username and e-mail, the “is this available?” question is asked **live** as you type.
+A nine-field registration form. Every field is validated both **instantly** (JavaScript, for user experience) and **on the server** (PHP, as the security boundary). For username and e-mail, the “is this available?” question is asked **live** as you type.
 
 But what the project actually teaches is not a form — it is three questions underneath it:
 
@@ -50,12 +50,12 @@ This is not a slogan, it is a measurable fact. You can open the console and dele
 ```
 POST system/ajax.php
   full_name=x  email=gecersiz  username=1KOTU
-  password=kisa  password_confirm=baska  birth_date=2030-13-45
-  website=hicbirsey  terms=0
+  password=kisa  password_confirm=baska
+  birth_date=2030-13-45  terms=0
 
 → HTTP 422
   errors: full_name, email, username, password,
-          password_confirm, birth_date, website, terms
+          password_confirm, birth_date, terms
 → Records created: 0
 ```
 
@@ -77,13 +77,12 @@ In the old version, every JavaScript validator carried a comment like `// see fu
 |-------|--------|--------|-------------|
 | E-mail, 191 chars | ❌ rejected | ✅ **accepted** | User submits, then gets a server error |
 | Password, 73 chars | ❌ rejected | ✅ **accepted** | Same |
-| Website, 268 chars | ❌ rejected | ✅ **accepted** | Same |
 | Message, 495 letters + 20 spaces | ✅ accepted | ❌ **rejected** | Valid input blocked on the client |
 | Full name, 60 astral letters | ✅ accepted | ❌ **rejected** | Same (`.length` counts 120) |
 | Username `"şş"` | “pattern error” | “length error” | **Two different reasons for one input** |
 | Username `"şşşşşşşşşşş"` | “length error” | “pattern error” | Same, in reverse |
 
-The absence of those three limits (190 / 72 / 255) on the client was not carelessness — it is an **inevitable outcome**: wherever the same fact is stored in two places, the two drift apart over time.
+The absence of those two limits (190 / 72) on the client was not carelessness — it is an **inevitable outcome**: wherever the same fact is stored in two places, the two drift apart over time.
 
 ### The fix: turn the limits into data
 
@@ -124,7 +123,6 @@ Only the part that can be turned into **data** is shared. The following must be 
 | Procedure | PHP | JavaScript | Why it can't be shared |
 |-----------|-----|------------|------------------------|
 | E-mail format | `filter_var(FILTER_VALIDATE_EMAIL)` | simple pattern | No exact browser equivalent |
-| Website | `parse_url` + `FILTER_VALIDATE_URL` | `new URL()` | Different parsers |
 | Age calculation | `DateTimeImmutable::diff()` | manual arithmetic | Different date libraries |
 | Phone normalisation | `preg_replace` + `substr` | `replace` + `slice` | Same logic, different syntax |
 
@@ -163,8 +161,8 @@ It doesn't need to: the answer is given in plain text. This is a good example of
 **The live check stays. A rate limit was added on top.** Reasoning:
 
 1. **Removing the feature would be removing the project.** This repository exists to explain exactly this feature. A “fix” that deletes what it teaches is not instructive.
-2. **Usernames are already public.** The “Son Gönderimler” (Recent Submissions) panel lists every username. Restricting `check_username` would be nailing shut the window next to an open door — security theatre, not security.
-3. **E-mail is different** — it is never displayed anywhere. That is what actually needs protecting, and the rate limit is primarily for it.
+2. **The leaked information is reduced to a single bit.** The application **never lists** stored data — there is no record list, search, counter or profile on screen. The only thing the endpoint can reveal is “exists / doesn't” for **one value at a time**. There is no way to pull a bulk list; the only remaining route is trying values one by one — which is exactly what the rate limit makes expensive.
+3. **The limit covers both fields.** Username and e-mail share one quota. Separate quotas would have let an enumerator fill both and send twice as many requests.
 4. **A rate limit makes enumeration expensive, not impossible.** This must be said honestly: a distributed attacker (a botnet) rotating IPs defeats it. The only way to end enumeration completely is to remove the feature.
 
 **What would you do in a real product?** Make the registration flow *always appear to succeed* and deliver the outcome by e-mail (“if this address is already registered, we've sent a sign-in link”). Then the endpoint **says nothing**. The price is losing all of this live feedback. Being a demo, this repository chose the **UX side** of the trade-off and wrote its reasoning down — which is the genuinely instructive part.
@@ -175,7 +173,6 @@ It doesn't need to: the answer is given in plain text. This is a good example of
 |----------|-------|-----------------|
 | `check_username` / `check_email` | **40 / min** (shared quota) | A real user filling the form sends ~10-15 requests (thanks to the 500 ms debounce). Measured with 16 requests: the limit **does not trigger**. |
 | `submit` | **5 / min** | A human does not register five times a minute. Its real purpose is protecting the CPU — see below. |
-| `list` | **60 / min** | Cheap query (~7 ms at 100,000 rows, measured). |
 
 The real justification for the `submit` limit is a measurement: **`password_hash()` costs ~116 ms of CPU on this machine** (bcrypt, cost 10) — roughly **90 %** of a submission's total time (~128 ms). Being able to burn 116 ms of CPU with an unauthenticated request is a cheap denial-of-service lever. The limit is applied **before** validation; applied after, a bot sending invalid forms would keep the server busy without ever hitting it.
 
@@ -230,7 +227,6 @@ The difference is instructive: two requests carrying the same `PHPSESSID` are se
 | Password | 8-**72** chars, upper + lower + digit | ✔ | **72 is bcrypt's hard limit**: `password_hash()` *silently ignores* everything past it. Say nothing and users end up with “I lengthened my password but the old one still works”. Special characters are not required — NIST recommends prioritising length over stacks of composition rules. |
 | Confirm password | Must match | ✔ | `hash_equals()` is unnecessary: both values are the user's own input, so there is no timing risk. |
 | Birth date | Valid date + **18** years | — | Age computed with `DateInterval` (leap-year edge cases included). The limit lives in `rules.php` — change it and the client follows. |
-| Website | Valid URL, host must contain **a dot**, ≤ 255 | — | `FILTER_VALIDATE_URL` considers `https://hicbirsey` — a single dotless word — **valid**. Hence the extra dot check, on both server and client. |
 | Message | ≤ 500 chars | — | Counter and limit count **code points**; that is what the server counts too. |
 | Terms | Must be checked | ✔ | `terms=0` and a missing `terms` are **both** rejected. |
 
@@ -304,8 +300,8 @@ CSRF rejection used to return **419** (a Laravel invention, not a standard). Mea
 
 These were measured too, and no problem was found:
 
-* **XSS:** `<script>alert(1)</script>` in `full_name` → **422** (the `\p{L}` pattern blocks it). No raw `<script` in the `list` response; `validation.js` renders all user data with `.text()` / `createTextNode()`.
-* **The `list` endpoint** returns only `id, full_name, username, created_at`. E-mail, phone and `password_hash` are **not** in the response (searched for, not found).
+* **XSS:** `<script>alert(1)</script>` in `full_name` → **422** (the `\p{L}` pattern blocks it). Since stored data is never returned in any response, there is no surface for stored XSS either.
+* **Data leakage:** No endpoint returns records at all. E-mail, phone and `password_hash` live only in the database; searched for in responses, not found.
 * **Scale:** at 100,000 rows, `check_email` medians **~6-7 ms**; `EXPLAIN` reports `type=const, key=uniq_submissions_email, rows=1` — the index is used.
 
 ---
@@ -319,7 +315,8 @@ All on `system/ajax.php`, via **POST**, CSRF token required.
 | `check_username` | `username` | `200` `{available, reason}` | `403` `429` |
 | `check_email` | `email` | `200` `{available, reason}` | `403` `429` |
 | `submit` | All form fields | `200` `{success, id}` | `422` (field errors) · `409` (race) · `403` · `429` |
-| `list` | — | `200` `{submissions[]}` | `403` `429` |
+
+These are the **only** endpoints. There is no endpoint that **reads** records: the `submissions` table is only written to, and read solely for uniqueness comparisons; no response ever returns a list of records.
 
 ### HTTP status codes and what they mean
 
@@ -333,7 +330,7 @@ All on `system/ajax.php`, via **POST**, CSRF token required.
 | `422` | Field validation errors | Well-formed request, **unprocessable content**. All errors come back **at once** in `errors{}` |
 | `429` | Rate limit exceeded | With a `Retry-After` header and a `retry_after` field |
 
-**Why return all errors at once?** Putting the user in a “fix one error, discover the next” loop is a poor experience, especially in a ten-field form. Measured: a request with eight broken fields returns **all eight errors** in a single response.
+**Why return all errors at once?** Putting the user in a “fix one error, discover the next” loop is a poor experience in a long form. Measured: a request with seven broken fields returns **all seven errors** in a single response.
 
 ---
 
@@ -348,7 +345,6 @@ CREATE TABLE `submissions` (
   `phone`         VARCHAR(20)  DEFAULT NULL,
   `password_hash` VARCHAR(255) NOT NULL,   -- password_hash() output
   `birth_date`    DATE         DEFAULT NULL,
-  `website`       VARCHAR(255) DEFAULT NULL,
   `message`       VARCHAR(500) DEFAULT NULL,
   `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -360,7 +356,9 @@ CREATE TABLE `submissions` (
 
 ### Sample data: 60 records — and what's in `password_hash`?
 
-The setup file ships with 60 sample records. **Why?** A project installed with an empty table cannot demonstrate its own most important feature: the “Recent Submissions” panel stays empty and the **live uniqueness check cannot be tried** — with nothing to collide with, every name comes back “available”. With 60 records you get the red “already taken” for `ahmet` and the green “✓ Available” for `ahmet2` on your very first try.
+The setup file ships with 60 sample records. **Why?** A project installed with an empty table cannot demonstrate its own most important feature: the **live uniqueness check cannot be tried** — with nothing to collide with, every username and every e-mail comes back “available”, so whoever downloads the project never sees the side of the form that answers while you type. With 60 records you get the red “already taken” for `ahmet` and the green “✓ Available” for `ahmet2` on your very first try.
+
+These records are **never listed in the UI**. The table is never read for display; it is only the data set that `email_exists()` / `username_exists()` compare against.
 
 **What went into `password_hash`?** All 60 rows carry the **same, real bcrypt digest** — the hash of `OrnekParola123`. That is fine for three reasons:
 
@@ -395,7 +393,7 @@ Then: **`http://localhost/form-validation-example/`**
 
 ```
 form-validation-example/
-├── index.php                   ← Form + recent submissions; passes rules to JS
+├── index.php                   ← Form; passes rules to JS
 ├── cy_validation.sql            ← Database setup + 60 sample records
 ├── .htaccess                     ← No directory listing, .sql/.md denied, security headers
 ├── system/
@@ -403,7 +401,7 @@ form-validation-example/
 │   ├── config.php                  ← Session hardening, PDO, rate-limit settings
 │   ├── rules.php                    ← ⭐ SINGLE SOURCE OF RULES (read by PHP and JS)
 │   ├── function.php                  ← Validators, CSRF, rate limiting, data access
-│   └── ajax.php                       ← check_username / check_email / submit / list
+│   └── ajax.php                       ← check_username / check_email / submit
 └── assets/
     ├── css/cilginyazilim.css           ← Shared brand design (don't touch)
     ├── css/style.css                    ← Page-specific styles

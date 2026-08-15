@@ -22,7 +22,7 @@ Canlı geri bildirim · Şifre gücü ölçer · AJAX benzersizlik kontrolü · 
 <img src="assets/images/screenshot-live-validation.png" alt="Canlı doğrulama: bazı alanlar kırmızı ve hata mesajlı, kullanıcı adının yanında yeşil ✓ Müsait, şifre gücü ölçeri dolu" width="920">
 
 <sub>Tek karede projenin tamamı: e-posta <b>canlı olarak</b> sorulup “zaten kayıtlı” dönmüş,<br>
-kullanıcı adının altında yeşil <b>“✓ Müsait”</b>, şifre ölçeri <b>“Çok Güçlü”</b>, telefon/doğum tarihi/web adresi<br>
+kullanıcı adının altında yeşil <b>“✓ Müsait”</b>, şifre ölçeri <b>“Çok Güçlü”</b>, telefon ve doğum tarihi<br>
 kırmızı ve <b>gerekçeli</b>. Form, siz yazarken cevap veriyor.</sub>
 
 </div>
@@ -31,7 +31,7 @@ kırmızı ve <b>gerekçeli</b>. Form, siz yazarken cevap veriyor.</sub>
 
 ## Bu proje ne yapıyor?
 
-On alanlı bir kayıt formu. Her alan hem **anında** (JavaScript, kullanıcı deneyimi için) hem de **sunucuda** (PHP, güvenlik sınırı olarak) doğrulanır. Kullanıcı adı ve e-posta için “müsait mi?” sorusu, yazarken CANLI olarak sorulur.
+Dokuz alanlı bir kayıt formu. Her alan hem **anında** (JavaScript, kullanıcı deneyimi için) hem de **sunucuda** (PHP, güvenlik sınırı olarak) doğrulanır. Kullanıcı adı ve e-posta için “müsait mi?” sorusu, yazarken CANLI olarak sorulur.
 
 Ama projenin anlattığı asıl şey bir form değil, formun altındaki üç soru:
 
@@ -50,12 +50,12 @@ Bu bir slogan değil, ölçülebilir bir gerçektir. Tarayıcı konsolunu açıp
 ```
 POST system/ajax.php
   full_name=x  email=gecersiz  username=1KOTU
-  password=kisa  password_confirm=baska  birth_date=2030-13-45
-  website=hicbirsey  terms=0
+  password=kisa  password_confirm=baska
+  birth_date=2030-13-45  terms=0
 
 → HTTP 422
   errors: full_name, email, username, password,
-          password_confirm, birth_date, website, terms
+          password_confirm, birth_date, terms
 → Oluşan kayıt: 0
 ```
 
@@ -77,13 +77,12 @@ Eski sürümde her JavaScript doğrulayıcısının üstünde `// bkz. function.
 |-------|--------|---------|-------|
 | E-posta, 191 karakter | ❌ reddetti | ✅ **kabul etti** | Kullanıcı formu gönderiyor, sunucudan hata yiyor |
 | Şifre, 73 karakter | ❌ reddetti | ✅ **kabul etti** | Aynı |
-| Web adresi, 268 karakter | ❌ reddetti | ✅ **kabul etti** | Aynı |
 | Mesaj, 495 harf + 20 boşluk | ✅ kabul etti | ❌ **reddetti** | Geçerli girdi istemcide engelleniyor |
 | Ad soyad, 60 astral harf | ✅ kabul etti | ❌ **reddetti** | Aynı (`.length` yüzeyde 120 sayıyor) |
 | Kullanıcı adı `"şş"` | “desen hatası” | “uzunluk hatası” | **Aynı girdiye iki farklı gerekçe** |
 | Kullanıcı adı `"şşşşşşşşşşş"` | “uzunluk hatası” | “desen hatası” | Aynı, ters yönde |
 
-Bu üç sınırın (190 / 72 / 255) istemcide **hiç yazılmamış** olması bir dikkatsizlik değil, **kaçınılmaz bir sonuçtur**: aynı bilgi iki yerde tutulduğu her yerde, zamanla ayrışır.
+Bu iki sınırın (190 / 72) istemcide **hiç yazılmamış** olması bir dikkatsizlik değil, **kaçınılmaz bir sonuçtur**: aynı bilgi iki yerde tutulduğu her yerde, zamanla ayrışır.
 
 ### Çözüm: sınırları VERİ hâline getirmek
 
@@ -128,7 +127,6 @@ Yalnızca **veriye dönüştürülebilen** kısım paylaşılır. Şunlar her di
 | Yordam | PHP | JavaScript | Neden paylaşılamaz |
 |--------|-----|------------|--------------------|
 | E-posta biçimi | `filter_var(FILTER_VALIDATE_EMAIL)` | basit desen | Tarayıcıda birebir karşılığı yok |
-| Web adresi | `parse_url` + `FILTER_VALIDATE_URL` | `new URL()` | Farklı ayrıştırıcılar |
 | Yaş hesabı | `DateTimeImmutable::diff()` | elle hesap | Farklı tarih kitaplıkları |
 | Telefon normalleştirme | `preg_replace` + `substr` | `replace` + `slice` | Aynı mantık, farklı sözdizimi |
 
@@ -167,8 +165,8 @@ Zaten sızmasına gerek yok: cevap düz metin olarak veriliyor. Bu, güvenlikte 
 **Canlı kontrol KALDI. Üstüne hız sınırı eklendi.** Gerekçe:
 
 1. **Özelliği kaldırmak, projeyi kaldırmak olurdu.** Bu depo tam olarak bu özelliği anlatıyor. Anlattığı şeyi silen bir “düzeltme” öğretici değildir.
-2. **Kullanıcı adları zaten herkese açık.** “Son Gönderimler” paneli tüm kullanıcı adlarını listeliyor. `check_username`'i kısıtlamak, açık kapının yanındaki pencereyi çivilemek olurdu — bu bir güvenlik önlemi değil, tiyatro olurdu.
-3. **E-posta farklıdır** — hiçbir yerde gösterilmez. Asıl korunması gereken budur; hız sınırı öncelikle onun içindir.
+2. **Sızdırılan bilgi tek bir bite indirildi.** Uygulama, kayıtlı veriyi hiçbir yerde **listelemez** — ekranda gösterilen bir kayıt listesi, arama, sayaç ya da profil yoktur. Uç noktanın verebileceği tek bilgi, sorulan **tek bir değer** için “var / yok”tur. Toplu bir liste çekmenin yolu kapalıdır; kalan tek yol, değerleri tek tek denemektir — ve hız sınırı tam olarak bunu pahalılaştırır.
+3. **Kısıtlama iki alana da uygulandı.** Kullanıcı adı ile e-posta aynı kotayı paylaşır. Ayrı kota verseydik, sayım yapan biri iki kotayı da doldurup iki kat istek atardı.
 4. **Hız sınırı sayımı imkânsız değil, PAHALI kılar.** Bu dürüstçe söylenmelidir: dağıtık bir saldırgan (bot ağı) her istekte farklı IP kullanarak sınırı aşar. Sayımı tümüyle bitirmenin tek yolu özelliği kaldırmaktır.
 
 **Gerçek bir üründe ne yapardınız?** Kayıt akışını “her zaman başarılı görünen” bir akışa çevirir, sonucu e-postayla bildirirsiniz (“bu adres zaten kayıtlıysa giriş bağlantısı gönderdik”). Böylece uç nokta hiçbir şey **söylemez**. Bunun bedeli, buradaki canlı geri bildirimin tümüyle kaybolmasıdır. Bu depo, bir demo olduğu için ödünleşimin **UX tarafını** seçti ve seçimini yazıya döktü — asıl öğretici olan da budur.
@@ -179,7 +177,6 @@ Zaten sızmasına gerek yok: cevap düz metin olarak veriliyor. Bu, güvenlikte 
 |----------|-------|----------------|
 | `check_username` / `check_email` | **40 / dakika** (ortak kota) | Gerçek bir kullanıcı formu doldururken ~10-15 istek atar (500 ms geciktirme sayesinde). 16 istekle ölçüldü: sınır **vurmuyor**. |
 | `submit` | **5 / dakika** | Bir insan dakikada 5 kez kayıt olmaz. Asıl amaç işlemciyi korumak — aşağıya bakın. |
-| `list` | **60 / dakika** | Ucuz sorgu (100.000 kayıtta ~7 ms, ölçüldü). |
 
 `submit` sınırının gerçek gerekçesi ölçümdür: **`password_hash()` bu makinede ~116 ms CPU harcıyor** (bcrypt, cost 10) — bu, bir gönderimin toplam süresinin (~128 ms) yaklaşık **%90'ı**. Kimliği doğrulanmamış bir istekle 116 ms işlemci yaktırabilmek, ucuz bir hizmet dışı bırakma kaldıracıdır. Sınır, doğrulamadan **önce** uygulanır; sonraya bırakılsaydı geçersiz form gönderen bir bot sınıra hiç takılmadan sunucuyu meşgul ederdi.
 
@@ -234,7 +231,6 @@ Aradaki fark öğreticidir: aynı `PHPSESSID` ile gelen iki istek, PHP'nin **otu
 | Şifre | 8-**72** karakter, büyük + küçük + rakam | ✔ | **72 bcrypt'in sert sınırıdır**: `password_hash()` sonrasını *sessizce yok sayar*. Söylemezseniz “şifremi uzattım ama eskisi de çalışıyor” durumu doğar. Özel karakter zorunlu değil — NIST, kural yığını yerine uzunluğa öncelik verilmesini önerir. |
 | Şifre Tekrar | Eşleşmeli | ✔ | `hash_equals()` gerekmez: ikisi de kullanıcının kendi girdisidir, zamanlama riski yok. |
 | Doğum Tarihi | Geçerli tarih + **18** yaş | — | Yaş `DateInterval` ile hesaplanır (artık yıl kenar durumları dahil). Sınır `rules.php`'de — değiştirirseniz istemci de takip eder. |
-| Web Sitesi | Geçerli URL, host'ta **en az bir nokta**, ≤ 255 | — | `FILTER_VALIDATE_URL`, `https://hicbirsey` gibi noktasız tek kelimeyi **geçerli sayar**. Ek nokta kontrolü bu yüzden var — hem sunucuda hem istemcide. |
 | Mesaj | ≤ 500 karakter | — | Sayaç ve sınır **kod noktası** sayar; sunucunun saydığı sayı budur. |
 | Sözleşme | İşaretlenmeli | ✔ | `terms=0` ve `terms` hiç gönderilmemiş — **ikisi de** reddedilir. |
 
@@ -308,8 +304,8 @@ CSRF reddi eskiden **419** dönüyordu (Laravel'in icadı, standart değil). Öl
 
 Bunlar da ölçüldü, sorun bulunmadı:
 
-* **XSS:** `full_name` alanına `<script>alert(1)</script>` → **422** (`\p{L}` deseni engelliyor). `list` yanıtında ham `<script` yok; `validation.js` her kullanıcı verisini `.text()` / `createTextNode()` ile basıyor.
-* **`list` uç noktası** yalnızca `id, full_name, username, created_at` döndürüyor. E-posta, telefon, `password_hash` yanıtta **yok** (arandı, bulunamadı).
+* **XSS:** `full_name` alanına `<script>alert(1)</script>` → **422** (`\p{L}` deseni engelliyor). Kayıtlı veri zaten hiçbir yanıtta geri dönmediği için, saklanan (stored) XSS'in çıkabileceği bir yüzey de yok.
+* **Veri sızıntısı:** Hiçbir uç nokta kayıt döndürmüyor. E-posta, telefon ve `password_hash` yalnızca veritabanında; yanıtlarda arandı, bulunamadı.
 * **Ölçek:** 100.000 kayıtta `check_email` medyanı **~6-7 ms**; `EXPLAIN` çıktısı `type=const, key=uniq_submissions_email, rows=1` — indeks kullanılıyor.
 
 ---
@@ -323,7 +319,8 @@ Hepsi `system/ajax.php` üzerinde, **POST** ile, CSRF token zorunlu.
 | `check_username` | `username` | `200` `{available, reason}` | `403` `429` |
 | `check_email` | `email` | `200` `{available, reason}` | `403` `429` |
 | `submit` | Tüm form alanları | `200` `{success, id}` | `422` (alan hataları) · `409` (yarış) · `403` · `429` |
-| `list` | — | `200` `{submissions[]}` | `403` `429` |
+
+Bunlar **tek** uç noktalardır. Kayıtları **okuyan** bir uç yoktur: `submissions` tablosu yalnızca yazılır ve benzersizlik sorgularında karşılaştırma için okunur; hiçbir yanıtta kayıt listesi dönmez.
 
 ### HTTP durum kodları ve anlamları
 
@@ -337,7 +334,7 @@ Hepsi `system/ajax.php` üzerinde, **POST** ile, CSRF token zorunlu.
 | `422` | Alan doğrulama hataları | İstek biçimi doğru, **içeriği** işlenemez. Tüm hatalar `errors{}` içinde **tek seferde** döner |
 | `429` | Hız sınırı aşıldı | `Retry-After` başlığı ve `retry_after` alanı ile |
 
-**Neden tüm hatalar tek seferde dönüyor?** Kullanıcıyı “bir hatayı düzelt, sonrakini gör” döngüsüne sokmak, özellikle on alanlı bir formda kötü bir deneyimdir. Ölçüldü: sekiz bozuk alanla gönderilen bir istek, **sekiz hatanın tamamını** tek yanıtta döndürüyor.
+**Neden tüm hatalar tek seferde dönüyor?** Kullanıcıyı “bir hatayı düzelt, sonrakini gör” döngüsüne sokmak, uzun bir formda kötü bir deneyimdir. Ölçüldü: yedi bozuk alanla gönderilen bir istek, **yedi hatanın tamamını** tek yanıtta döndürüyor.
 
 ---
 
@@ -352,7 +349,6 @@ CREATE TABLE `submissions` (
   `phone`         VARCHAR(20)  DEFAULT NULL,
   `password_hash` VARCHAR(255) NOT NULL,   -- password_hash() çıktısı
   `birth_date`    DATE         DEFAULT NULL,
-  `website`       VARCHAR(255) DEFAULT NULL,
   `message`       VARCHAR(500) DEFAULT NULL,
   `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -364,7 +360,9 @@ CREATE TABLE `submissions` (
 
 ### Örnek veri: 60 kayıt — ve `password_hash` sütununda ne var?
 
-Kurulum dosyası 60 örnek kayıtla gelir. **Neden?** Boş bir tabloyla kurulan proje kendi en önemli özelliğini gösteremez: “Son Gönderimler” paneli boş kalır ve **canlı benzersizlik kontrolü denenemez** — çakışacak kayıt olmadığı için her ad “müsait” çıkar. 60 kayıtla, kullanıcı adı alanına `ahmet` yazıp kırmızı “zaten alınmış”, `ahmet2` yazıp yeşil “✓ Müsait” cevabını ilk denemede görürsünüz.
+Kurulum dosyası 60 örnek kayıtla gelir. **Neden?** Boş bir tabloyla kurulan proje kendi en önemli özelliğini gösteremez: **canlı benzersizlik kontrolü denenemez** — çakışacak kayıt olmadığı için her kullanıcı adı ve her e-posta “müsait” çıkar. Yani projeyi indiren kişi, formun yazarken cevap veren yanını hiç görmez. 60 kayıtla, kullanıcı adı alanına `ahmet` yazıp kırmızı “zaten alınmış”, `ahmet2` yazıp yeşil “✓ Müsait” cevabını ilk denemede görürsünüz.
+
+Bu kayıtlar **arayüzde listelenmez**. Tablo hiçbir uçtan okunup ekrana basılmaz; yalnızca `email_exists()` / `username_exists()` sorgularının karşılaştırma yaptığı veri kümesidir.
 
 **`password_hash` sütununa ne kondu?** 60 satırın hepsinde **aynı, gerçek bir bcrypt çıktısı** — `OrnekParola123` parolasının hash'i. Üç sebeple sorun değildir:
 
@@ -399,7 +397,7 @@ Sonra: **`http://localhost/form-validation-example/`**
 
 ```
 form-validation-example/
-├── index.php                   ← Form + son gönderimler paneli; kuralları JS'e aktarır
+├── index.php                   ← Form; kuralları JS'e aktarır
 ├── cy_validation.sql            ← Veritabanı kurulumu + 60 örnek kayıt
 ├── .htaccess                     ← Dizin listeleme kapalı, .sql/.md kapalı, güvenlik başlıkları
 ├── system/
@@ -407,7 +405,7 @@ form-validation-example/
 │   ├── config.php                  ← Oturum güvenliği, PDO, hız sınırı ayarları
 │   ├── rules.php                    ← ⭐ KURALLARIN TEK KAYNAĞI (PHP + JS buradan okur)
 │   ├── function.php                  ← Doğrulayıcılar, CSRF, hız sınırı, veri erişimi
-│   └── ajax.php                       ← check_username / check_email / submit / list
+│   └── ajax.php                       ← check_username / check_email / submit
 └── assets/
     ├── css/cilginyazilim.css           ← Ortak marka tasarımı (dokunmayın)
     ├── css/style.css                    ← Sayfaya özel stiller

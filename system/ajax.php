@@ -7,7 +7,6 @@
  *    action=check_username → CANLI benzersizlik kontrolü (yazarken)
  *    action=check_email    → CANLI benzersizlik kontrolü (yazarken)
  *    action=submit         → Formu SUNUCUDA TAM doğrula ve kaydet
- *    action=list            → Son gönderimler (salt okunur liste)
  *
  *  HER UÇ NOKTA ÜÇ KAPIDAN GEÇER:
  *    1. Yöntem POST mu?          → değilse 405
@@ -46,10 +45,6 @@ try {
 
         case 'submit':
             handle_submit($db);
-            break;
-
-        case 'list':
-            handle_list($db);
             break;
 
         default:
@@ -159,9 +154,8 @@ function handle_submit(PDO $db): void
     [$password, $passwordError]         = validate_password($_POST['password'] ?? '');
     [, $confirmError]                    = validate_password_confirm($_POST['password'] ?? '', $_POST['password_confirm'] ?? '');
     [$birthDate, $birthDateError]         = validate_birth_date($_POST['birth_date'] ?? '');
-    [$website, $websiteError]              = validate_website($_POST['website'] ?? '');
-    [$message, $messageError]               = validate_message($_POST['message'] ?? '');
-    [, $termsError]                          = validate_terms($_POST['terms'] ?? null);
+    [$message, $messageError]              = validate_message($_POST['message'] ?? '');
+    [, $termsError]                         = validate_terms($_POST['terms'] ?? null);
 
     foreach ([
         'full_name'        => $nameError,
@@ -171,7 +165,6 @@ function handle_submit(PDO $db): void
         'password'         => $passwordError,
         'password_confirm' => $confirmError,
         'birth_date'       => $birthDateError,
-        'website'          => $websiteError,
         'message'          => $messageError,
         'terms'            => $termsError,
     ] as $field => $errorMessage) {
@@ -203,8 +196,8 @@ function handle_submit(PDO $db): void
      * değiştirmeden otomatik faydalanırsınız. */
     try {
         $stmt = $db->prepare(
-            'INSERT INTO submissions (full_name, email, username, phone, password_hash, birth_date, website, message)
-             VALUES (:full_name, :email, :username, :phone, :password_hash, :birth_date, :website, :message)'
+            'INSERT INTO submissions (full_name, email, username, phone, password_hash, birth_date, message)
+             VALUES (:full_name, :email, :username, :phone, :password_hash, :birth_date, :message)'
         );
 
         $stmt->execute([
@@ -214,7 +207,6 @@ function handle_submit(PDO $db): void
             ':phone'          => $phone,
             ':password_hash'  => password_hash($password, PASSWORD_DEFAULT),
             ':birth_date'     => $birthDate,
-            ':website'        => $website,
             ':message'        => $message,
         ]);
     } catch (PDOException $e) {
@@ -232,29 +224,4 @@ function handle_submit(PDO $db): void
     }
 
     json_success('Kayıt başarıyla oluşturuldu.', ['id' => (int) $db->lastInsertId()]);
-}
-
-
-/* =====================================================================
- *  3) SON GÖNDERİMLER (yalnızca hassas olmayan alanlar)
- * =====================================================================
- *  E-posta, telefon, şifre hash'i GÖSTERİLMEZ — bu bir demo olsa
- *  bile, "veritabanına ne kaydedildi" ile "arayüzde ne gösterilir"
- *  AYNI ŞEY DEĞİLDİR alışkanlığını pekiştirmek içindir.
- * ------------------------------------------------------------------ */
-function handle_list(PDO $db): void
-{
-    require_csrf();
-    rate_limit('list', ...RATE_LIMIT_LIST);
-
-    $rows = array_map(static function (array $row): array {
-        return [
-            'id'         => (int) $row['id'],
-            'full_name'  => $row['full_name'],
-            'username'   => $row['username'],
-            'created_at' => format_date($row['created_at']),
-        ];
-    }, fetch_recent_submissions($db));
-
-    json_response(['success' => true, 'submissions' => $rows]);
 }
