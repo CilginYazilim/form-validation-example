@@ -1,0 +1,70 @@
+/* ==================================================================
+ *  SAYFAYA ÖZEL STİLLER
+ *  cilginyazilim.com – Form Doğrulama Örneği
+ * ------------------------------------------------------------------
+ *  Yükleme sırası:
+ *    bootstrap.min.css → cilginyazilim.css → style.css
+ * ================================================================== */
+
+.container { max-width: 1180px; }
+
+/* Bu projede form-sarmalı bir modal yok, ama ileride eklenirse diye
+ * aynı önceden bilinen yerleşim hatasına karşı kural burada durur
+ * (bkz. todo-drag-drop / excel-import-export / bulk-actions-table). */
+.cy-modal .modal-dialog > form {
+    width: 100%;
+}
+
+
+/* ==================================================================
+ *  ALAN DURUM İPUCU (canlı benzersizlik kontrolü)
+ * ================================================================== */
+.cy-field-status {
+    min-height: 1.1rem;
+    margin-top: .25rem;
+    font-size: .78rem;
+}
+
+
+/* ==================================================================
+ *  ŞİFRE GÜCÜ ÖLÇER
+ * ------------------------------------------------------------------
+ *  --cy-strength-width: JavaScript tarafından yazılır (bkz.
+ *  updatePasswordMeter()). Renk, .cy-strength--N sınıfına göre CSS'te
+ *  belirlenir; JS yalnızca GENİŞLİĞİ ve SINIF NUMARASINI ayarlar,
+ *  rengi kendisi hesaplamaz — renk kararı tek bir yerde (burada) durur.
+ * ================================================================== */
+.cy-strength {
+    height: 6px;
+    margin-top: .5rem;
+    border-radius: 999px;
+    background: var(--cy-bg-alt);
+    overflow: hidden;
+}
+
+.cy-strength__bar {
+    height: 100%;
+    width: var(--cy-strength-width, 0%);
+    border-radius: 999px;
+    transition: width .2s ease, background-color .2s ease;
+}
+
+.cy-strength--0 .cy-strength__bar { background: var(--cy-danger); }
+.cy-strength--1 .cy-strength__bar { background: #f97316; }
+.cy-strength--2 .cy-strength__bar { background: var(--cy-warning); }
+.cy-strength--3 .cy-strength__bar { background: #84cc16; }
+.cy-strength--4 .cy-strength__bar { background: var(--cy-success); }
+
+
+/* ==================================================================
+ *  SON GÖNDERİMLER LİSTESİ
+ * ================================================================== */
+#submission_list .list-group-item {
+    padding: .55rem .25rem;
+    border-left: 0;
+    border-right: 0;
+}
+
+#submission_list .list-group-item:first-child {
+    border-top: 0;
+}

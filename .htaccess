@@ -1,0 +1,68 @@
+# =====================================================================
+#  KÖK DİZİN KURALLARI
+#  cilginyazilim.com – Form Doğrulama Örneği
+# ---------------------------------------------------------------------
+#  Bu dosya alt klasörlere de MİRAS KALIR (ölçüldü) — buradaki güvenlik
+#  başlıkları assets/ ve system/ yanıtlarında da geçerlidir.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+#  1) KLASÖR İÇERİĞİ LİSTELENMESİN
+# ---------------------------------------------------------------------
+#  ÖLÇÜLEN SORUN: /assets/js/ adresi HTTP 200 ile klasör listesini
+#  basıyordu — dosya adları, boyutları ve değiştirilme tarihleriyle
+#  birlikte. Saldırganın "burada ne var?" sorusunu bedavaya
+#  cevaplamanın gereği yok.
+Options -Indexes
+
+# ---------------------------------------------------------------------
+#  2) ÇALIŞTIRILMAYAN DOSYALAR İNDİRİLEMESİN
+# ---------------------------------------------------------------------
+#  ÖLÇÜLEN SORUN: /cy_validation.sql adresi HTTP 200 ile veritabanı
+#  kurulum dosyasının tamamını indiriyordu — tablo yapısı ve tüm örnek
+#  kayıtlar dahil. Bu depoda veri uydurmadır ama desen tehlikelidir:
+#  aynı düzenle canlıya alınan bir projede o dosya gerçek kullanıcı
+#  verisi taşır. Şema ve örnek veri KURULUM malzemesidir; web
+#  sunucusunun onları servis etmesi için hiçbir sebep yoktur.
+<FilesMatch "\.(sql|md|json|lock|log|ini|bak|dist|example)$">
+    Require all denied
+</FilesMatch>
+
+#  Nokta ile başlayan dosyalar (.htaccess, .gitignore, .env …).
+#  ÖLÇÜLEN SORUN: /.gitignore adresi HTTP 200 dönüyordu.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# ---------------------------------------------------------------------
+#  3) GÜVENLİK BAŞLIKLARI
+# ---------------------------------------------------------------------
+#  ÖLÇÜLEN SORUN: index.php yanıtında bu başlıkların HİÇBİRİ yoktu.
+#  ajax.php kendi JSON yanıtlarına X-Content-Type-Options ekliyordu
+#  (bkz. json_response) ama HTML sayfası ve assets/ tümüyle açıktaydı.
+<IfModule mod_headers.c>
+    # Tarayıcı Content-Type'ı tahmin etmeye çalışmasın.
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Sayfa başka bir sitenin çerçevesine gömülmesin (clickjacking).
+    # Bu formda somut anlamı: görünmez bir çerçeveye alınmış kayıt
+    # formuna, kullanıcı farkında olmadan veri girip gönderebilir.
+    Header always set X-Frame-Options "SAMEORIGIN"
+
+    # Dış sitelere giderken tam URL yerine yalnızca alan adı gönderilsin.
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Bu sayfanın ihtiyacı olmayan tarayıcı yetenekleri kapatılsın.
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+
+    # İÇERİK GÜVENLİĞİ POLİTİKASI (CSP)
+    # 'unsafe-inline' BİLEREK açıktır ve bu bir taviz: index.php'nin
+    # sonundaki CyValidation.init(...) çağrısı ile Bootstrap'in
+    # ürettiği satır içi stiller onsuz çalışmaz. Doğrusu her satır içi
+    # bloğa nonce vermektir; bu depoda amaç tek dosyalık, kopyalanabilir
+    # bir örnek olduğu için nonce altyapısı kurulmadı. Buna rağmen CSP
+    # boş bırakılmadı: default-src 'self' sayesinde sayfa DIŞ bir
+    # sunucudan script/stil/çerçeve yükleyemez — XSS ile enjekte edilen
+    # kodun veriyi dışarı taşıyabileceği en kolay yol budur.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; form-action 'self'; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
+</IfModule>
