@@ -4,6 +4,10 @@
  * ------------------------------------------------------------------
  *  Yükleme sırası:
  *    bootstrap.min.css → cilginyazilim.css → style.css
+ *
+ *  cilginyazilim.css ORTAK marka dosyasıdır ve bütün örnek projeler
+ *  onu paylaşır; bu yüzden BU projeye özgü hiçbir kural oraya
+ *  yazılmaz. Aşağıdaki her şey yalnızca bu formu ilgilendirir.
  * ================================================================== */
 
 .container { max-width: 1180px; }
@@ -17,12 +21,170 @@
 
 
 /* ==================================================================
+ *  KART BAŞLIĞI: MARKA + TEMA DÜĞMESİ
+ * ------------------------------------------------------------------
+ *  Başlık, iki kenara yaslanan bir satırdır. Dar ekranda marka metni
+ *  tema düğmesinin altına DÜŞMEZ; düğme sabit genişlikte kalır ve
+ *  metin gerekirse kırpılır (bkz. MOBİL bölümü).
+ * ================================================================== */
+.cy-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+/* Marka bağlantısı esner, tema düğmesi esnemez. min-width:0 olmadan
+ * flex öğesi kendi içeriğinden daha dar olamaz ve uzun başlık taşar. */
+.cy-page-header .cy-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.cy-brand__text { min-width: 0; }
+
+
+/* ==================================================================
+ *  TEMA DÜĞMESİ (koyu / açık)
+ * ------------------------------------------------------------------
+ *  İkon bir GÖRSEL DOSYASI değil, maskelenmiş SVG'dir: rengi
+ *  currentColor'dan alır, yani gradyanlı başlığın üzerinde beyaz,
+ *  başka bir zeminde metin rengiyle çizilir. Ayrıca ayrı bir HTTP
+ *  isteği yoktur.
+ *
+ *  44×44 px: dokunma hedefi için kabul gören alt sınır. Simge 18 px
+ *  olsa da düğmenin KENDİSİ parmağa göre ölçülür.
+ * ================================================================== */
+.cy-theme-toggle {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, .32);
+    background: rgba(255, 255, 255, .16);
+    color: #fff;
+    transition: background-color var(--cy-transition), transform var(--cy-transition);
+}
+
+.cy-theme-toggle:hover  { background: rgba(255, 255, 255, .28); }
+.cy-theme-toggle:active { transform: scale(.94); }
+
+.cy-theme-toggle:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.cy-theme-toggle__icon {
+    width: 20px;
+    height: 20px;
+    background-color: currentColor;
+    -webkit-mask: var(--cy-icon) center / contain no-repeat;
+            mask: var(--cy-icon) center / contain no-repeat;
+    /* Varsayılan: AY (koyu temaya geçir). Açık temadayken kullanıcıya
+     * "buraya basarsan ne OLACAĞINI" göstermek, "şu an neredesin"
+     * demekten daha yararlıdır. */
+    --cy-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M21.64 13a1 1 0 0 0-1.05-.14 8.05 8.05 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.6 8.6 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05Z'/%3E%3C/svg%3E");
+}
+
+/* Koyu temada GÜNEŞ gösterilir: basınca açık temaya dönülür. */
+:root[data-cy-theme="dark"] .cy-theme-toggle__icon {
+    --cy-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-13a1 1 0 0 1-1-1V1a1 1 0 0 1 2 0v2a1 1 0 0 1-1 1Zm0 20a1 1 0 0 1-1-1v-2a1 1 0 0 1 2 0v2a1 1 0 0 1-1 1ZM4.22 5.64a1 1 0 0 1-.7-.29L2.1 3.93A1 1 0 0 1 3.52 2.5l1.42 1.43a1 1 0 0 1-.72 1.71Zm15.56 15.56a1 1 0 0 1-.7-.29l-1.42-1.42a1 1 0 0 1 1.42-1.42l1.42 1.42a1 1 0 0 1-.72 1.71ZM3 13H1a1 1 0 0 1 0-2h2a1 1 0 0 1 0 2Zm20 0h-2a1 1 0 0 1 0-2h2a1 1 0 0 1 0 2ZM2.8 21.2a1 1 0 0 1-.7-1.71l1.42-1.42a1 1 0 1 1 1.42 1.42L3.52 20.9a1 1 0 0 1-.72.3ZM18.36 5.64a1 1 0 0 1-.7-1.71l1.42-1.43a1 1 0 0 1 1.42 1.43l-1.42 1.42a1 1 0 0 1-.72.29Z'/%3E%3C/svg%3E");
+}
+
+/* Kullanıcı hiç seçim yapmadıysa (data-cy-theme YOK) işletim sistemi
+ * tercihi geçerlidir; simge de ona uymalıdır. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-cy-theme="light"]) .cy-theme-toggle__icon {
+        --cy-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-13a1 1 0 0 1-1-1V1a1 1 0 0 1 2 0v2a1 1 0 0 1-1 1Zm0 20a1 1 0 0 1-1-1v-2a1 1 0 0 1 2 0v2a1 1 0 0 1-1 1ZM4.22 5.64a1 1 0 0 1-.7-.29L2.1 3.93A1 1 0 0 1 3.52 2.5l1.42 1.43a1 1 0 0 1-.72 1.71Zm15.56 15.56a1 1 0 0 1-.7-.29l-1.42-1.42a1 1 0 0 1 1.42-1.42l1.42 1.42a1 1 0 0 1-.72 1.71ZM3 13H1a1 1 0 0 1 0-2h2a1 1 0 0 1 0 2Zm20 0h-2a1 1 0 0 1 0-2h2a1 1 0 0 1 0 2ZM2.8 21.2a1 1 0 0 1-.7-1.71l1.42-1.42a1 1 0 1 1 1.42 1.42L3.52 20.9a1 1 0 0 1-.72.3ZM18.36 5.64a1 1 0 0 1-.7-1.71l1.42-1.43a1 1 0 0 1 1.42 1.43l-1.42 1.42a1 1 0 0 1-.72.29Z'/%3E%3C/svg%3E");
+    }
+}
+
+
+/* ==================================================================
  *  ALAN DURUM İPUCU (canlı benzersizlik kontrolü)
+ * ------------------------------------------------------------------
+ *  min-height: satır BOŞKEN de yer kaplar. Aksi hâlde "Müsait"
+ *  yazısı belirdiğinde altındaki tüm alanlar bir satır aşağı kayar —
+ *  kullanıcı tam o sırada bir alana dokunuyorsa yanlış yere basar.
  * ================================================================== */
 .cy-field-status {
     min-height: 1.1rem;
     margin-top: .25rem;
     font-size: .78rem;
+}
+
+
+/* ==================================================================
+ *  ŞİFRE ALANI: GÖSTER / GİZLE
+ * ------------------------------------------------------------------
+ *  Bootstrap'in .input-group'u YERİNE ayrı bir sarmalayıcı kullanıldı:
+ *  input-group, .is-invalid ile birlikte kenarlık yarıçaplarını ve
+ *  geri bildirim satırının konumunu bozuyor (invalid-feedback,
+ *  grubun DIŞINDA kalması gerekirken içinde kalıyor). Burada düğme
+ *  input'un ÜZERİNE bindirilir; input'un kendisi tek parça kalır.
+ * ================================================================== */
+.cy-password {
+    position: relative;
+    display: flex;
+}
+
+.cy-password .form-control {
+    /* Düğmenin kapladığı alan kadar sağ boşluk: uzun bir şifre
+     * yazıldığında metin göz simgesinin altına girmesin. */
+    padding-right: 2.9rem;
+}
+
+.cy-password__toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    place-items: center;
+    width: 2.9rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--cy-text-muted);
+    border-radius: 0 var(--cy-radius-sm) var(--cy-radius-sm) 0;
+    transition: color var(--cy-transition);
+}
+
+.cy-password__toggle:hover { color: var(--cy-brand-600); }
+
+/* Bootstrap, .is-valid / .is-invalid alanlarına SAĞ KENARA bir tik ya da
+ * ünlem simgesi basar. Göster/gizle düğmesi de sağdadır: ikisi üst üste
+ * biner ve iki simge birden okunamaz hâle gelir. Bootstrap'in simgesini
+ * düğmenin SOLUNA kaydırıyor, metnin sığacağı boşluğu da ona göre
+ * büyütüyoruz. */
+.cy-password .form-control.is-valid,
+.cy-password .form-control.is-invalid {
+    padding-right: 5rem;
+    background-position: right 3.2rem center;
+}
+
+.cy-password__toggle:focus-visible {
+    outline: 2px solid var(--cy-brand-500);
+    outline-offset: -2px;
+}
+
+.cy-password__icon {
+    width: 20px;
+    height: 20px;
+    background-color: currentColor;
+    -webkit-mask: var(--cy-icon) center / contain no-repeat;
+            mask: var(--cy-icon) center / contain no-repeat;
+    /* Kapalı göz = "şu an gizli, basınca göreceksin" */
+    --cy-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7Zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z'/%3E%3C/svg%3E");
+}
+
+/* Şifre görünürken açık göz + eğik çizgi: "basınca gizlenecek" */
+.cy-password__toggle[aria-pressed="true"] .cy-password__icon {
+    color: var(--cy-brand-600);
+    --cy-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M2.1 3.51 3.51 2.1l18.38 18.39-1.41 1.41-3.2-3.2A11.6 11.6 0 0 1 12 19C5 19 2 12 2 12a17.6 17.6 0 0 1 4.2-5.29L2.1 3.51ZM12 7a5 5 0 0 1 4.55 7.06l-1.6-1.6A3 3 0 0 0 11.54 9L9.94 7.4A5 5 0 0 1 12 7Zm0-2c7 0 10 7 10 7a17.9 17.9 0 0 1-2.63 3.78l-1.44-1.44A15.4 15.4 0 0 0 19.74 12C18.9 10.6 16.2 7 12 7c-.42 0-.83.04-1.23.1L9.2 5.53A11.8 11.8 0 0 1 12 5Z'/%3E%3C/svg%3E");
 }
 
 
@@ -57,14 +219,205 @@
 
 
 /* ==================================================================
- *  SON GÖNDERİMLER LİSTESİ
+ *  ONAY KUTUSU VE İÇİNDEKİ BAĞLANTI
+ * ------------------------------------------------------------------
+ *  .cy-link-btn: görünüşü bağlantı, ANLAMI düğme olan öğe. Bir metin
+ *  açtığı için <a href="#"> DEĞİLDİR — o işaretleme, adres çubuğuna
+ *  "#" yazar, geri tuşunu kirletir ve JavaScript kapalıyken hiçbir
+ *  şey yapmayan bir bağlantı bırakır.
  * ================================================================== */
-#submission_list .list-group-item {
-    padding: .55rem .25rem;
-    border-left: 0;
-    border-right: 0;
+.cy-link-btn {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--cy-brand-600);
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
-#submission_list .list-group-item:first-child {
-    border-top: 0;
+.cy-link-btn:hover { color: var(--cy-brand-700); }
+
+
+/* ==================================================================
+ *  KATLANABİLİR BİLGİ PANELİ (yalnız mobilde katlanır)
+ * ================================================================== */
+.cy-info__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    width: 100%;
+    min-height: 48px;
+    padding: .85rem 1rem;
+    border: 0;
+    background: transparent;
+    color: var(--cy-text);
+    font-weight: 600;
+    font-size: .95rem;
+    text-align: left;
+}
+
+.cy-info__chevron {
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid var(--cy-text-muted);
+    border-bottom: 2px solid var(--cy-text-muted);
+    transform: rotate(45deg);          /* Aşağı bakan ok: "açılır" */
+    transform-origin: 60% 60%;
+    transition: transform var(--cy-transition);
+}
+
+/* Bootstrap, panel AÇIKKEN düğmeden .collapsed sınıfını kaldırır. */
+.cy-info__toggle:not(.collapsed) .cy-info__chevron {
+    transform: rotate(-135deg);        /* Yukarı bakan ok: "kapanır" */
+}
+
+/* Panel açıkken başlıkla gövde arasında ince bir ayraç. */
+.cy-info__toggle:not(.collapsed) {
+    border-bottom: 1px solid var(--cy-border);
+}
+
+
+/* ==================================================================
+ *  MOBİL DÜZENLEMELER
+ * ------------------------------------------------------------------
+ *  Bu bölümdeki kuralların hepsi ÖLÇÜLEN somut bir mobil sorunu
+ *  çözer; "telefonda daha güzel dursun" diye eklenmiş süs yoktur.
+ * ================================================================== */
+@media (max-width: 575.98px) {
+
+    /* --- 1) iOS'ta ODAKLANINCA SAYFANIN ZIPLAMASI ------------------
+     * Safari (iOS), yazı boyutu 16 px'ten KÜÇÜK bir alana
+     * odaklanıldığında sayfayı otomatik yakınlaştırır; kullanıcı
+     * alandan çıkınca da geri almaz. Sonuç: form yatay kayar ve
+     * kalan alanların yarısı ekran dışında kalır. Tek çözüm, dokunulan
+     * alanın yazı boyutunun 16 px olmasıdır. Bootstrap'in .form-control
+     * varsayılanı 1rem'dir ama .form-control-sm veya tema
+     * küçültmeleri bunu kolayca bozar; burada açıkça sabitliyoruz. */
+    .cy-app .form-control,
+    .cy-app .form-select {
+        font-size: 16px;
+    }
+
+    /* --- 2) DOKUNMA HEDEFİ ---------------------------------------- */
+    .cy-app .form-control:not(textarea) {
+        min-height: 46px;
+    }
+
+    .cy-submit {
+        min-height: 50px;
+        font-size: 1rem;
+    }
+
+    /* Onay kutusu 1rem × 1rem geliyordu: parmakla isabet ettirmesi zor
+     * ve yanlışlıkla etiketin boşluğuna basmak kolaydı. Kutu büyüyünce
+     * Bootstrap'in negatif margin'i de birlikte büyümeli, yoksa etiket
+     * kutunun üstüne biner. */
+    .cy-check {
+        padding-left: 1.9rem;
+    }
+
+    .cy-check .form-check-input {
+        width: 1.35rem;
+        height: 1.35rem;
+        margin-top: .1rem;
+        margin-left: -1.9rem;
+    }
+
+    .cy-check .form-check-label {
+        padding-left: .35rem;
+        line-height: 1.5;
+    }
+
+    /* --- 3) BAŞLIK ------------------------------------------------- */
+    .cy-brand__title    { font-size: 1rem; }
+    .cy-brand__subtitle { font-size: .75rem; }
+
+    /* Logo kutusu 46 px'ti; dar ekranda başlık metninden çaldığı yer,
+     * marka adının iki satıra düşmesine sebep oluyordu. */
+    .cy-brand__mark { width: 40px; height: 40px; }
+
+    .cy-theme-toggle { width: 40px; height: 40px; }
+    .cy-theme-toggle__icon { width: 18px; height: 18px; }
+
+    /* --- 4) KART KENARLARI ----------------------------------------
+     * Telefonda 1.25rem'lik yuvarlaklık, kartın içindeki formu
+     * ekranın kenarından gereksizce uzaklaştırıyordu. */
+    .cy-card { border-radius: var(--cy-radius); }
+
+    .cy-card__footer {
+        font-size: .78rem;
+        padding: .75rem 1rem;
+    }
+
+    /* --- 5) BİLDİRİMLER (toast) -----------------------------------
+     * ÖLÇÜLEN SORUN: toast'lar sağ ÜSTE sabitlenmişti. Telefonda
+     * gönder düğmesi ekranın ALTINDADIR; kullanıcı düğmeye baktığı
+     * anda, ekranın öbür ucunda beliren bildirimi kaçırıyordu.
+     * Ayrıca dar ekranda başlığın üstüne biniyordu.
+     * Artık ALTTAN ve tam genişlikte gelir — parmağın ve gözün zaten
+     * bulunduğu yerden. */
+    .cy-toast-container {
+        top: auto !important;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        padding: .75rem !important;
+        /* Ekranın alt kenarındaki jest çubuğu (iPhone) bildirimi
+         * kesmesin. */
+        padding-bottom: calc(.75rem + env(safe-area-inset-bottom)) !important;
+    }
+
+    .cy-toast { width: 100%; }
+
+    /* --- 6) ÇENTİK / GÜVENLİ ALAN ---------------------------------
+     * viewport-fit=cover ile sayfa ekranın tamamına yayılır; yatay
+     * moddaki çentiğin altında metin kalmasın. */
+    .cy-container {
+        padding-left:  calc(.75rem + env(safe-area-inset-left));
+        padding-right: calc(.75rem + env(safe-area-inset-right));
+    }
+}
+
+/* Tablet ve dar dizüstü: yan panel formun altına düşer, kartlar
+ * arasındaki boşluk yeterli olsun. */
+@media (min-width: 576px) and (max-width: 991.98px) {
+    .cy-brand__title { font-size: 1.15rem; }
+}
+
+
+/* ==================================================================
+ *  HATA SATIRININ GÖRÜNMESİ
+ * ------------------------------------------------------------------
+ *  Bootstrap'in .invalid-feedback'i varsayılan olarak GİZLİDİR ve
+ *  yalnızca "hemen ÖNCEKİ KARDEŞİ .is-invalid ise" görünür
+ *  (.form-control.is-invalid ~ .invalid-feedback). Şifre alanları artık
+ *  .cy-password sarmalayıcısının İÇİNDE olduğu için bu kardeşlik
+ *  kırıldı ve mesaj hiç görünmezdi.
+ *
+ *  Çözüm, seçiciyi her yerleşime göre yeniden yazmak DEĞİL: JavaScript
+ *  hata metnini yazarken .is-shown sınıfını da ekler (bkz.
+ *  setFieldError). Böylece kural, alanın DOM'daki yerinden bağımsız
+ *  olarak tek bir yerde durur.
+ * ================================================================== */
+.invalid-feedback.is-shown {
+    display: block;
+}
+
+
+/* ==================================================================
+ *  ERİŞİLEBİLİRLİK — KLAVYE ODAĞI
+ * ------------------------------------------------------------------
+ *  :focus-visible, odağı YALNIZCA klavyeyle gezerken gösterir; fareyle
+ *  tıklayan kullanıcı halka görmez. Halkayı tümüyle kaldırmak
+ *  (outline: none) klavye kullanıcısını sayfada kaybeder.
+ * ================================================================== */
+.cy-link-btn:focus-visible,
+.cy-info__toggle:focus-visible {
+    outline: 2px solid var(--cy-brand-500);
+    outline-offset: 2px;
+    border-radius: 4px;
 }

@@ -7,6 +7,7 @@
 **İstemci + sunucu çift katmanlı form doğrulama — kurallar tek kaynaktan.**
 Canlı geri bildirim · Şifre gücü ölçer · AJAX benzersizlik kontrolü · TOCTOU zinciri
 
+[![Sürüm](https://img.shields.io/badge/S%C3%BCr%C3%BCm-1.1.0-0b5cb5?style=flat-square)](https://github.com/CilginYazilim/form-validation-example/releases/latest)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4?style=flat-square&logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.7%2B-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Lisans](https://img.shields.io/badge/Lisans-MIT-brightgreen?style=flat-square)](LICENSE)
@@ -397,7 +398,7 @@ Sonra: **`http://localhost/form-validation-example/`**
 
 ```
 form-validation-example/
-├── index.php                   ← Form; kuralları JS'e aktarır
+├── index.php                   ← Form; kuralları JS'e aktarır, temayı çizimden önce uygular
 ├── cy_validation.sql            ← Veritabanı kurulumu + 60 örnek kayıt
 ├── .htaccess                     ← Dizin listeleme kapalı, .sql/.md kapalı, güvenlik başlıkları
 ├── system/
@@ -408,8 +409,8 @@ form-validation-example/
 │   └── ajax.php                       ← check_username / check_email / submit
 └── assets/
     ├── css/cilginyazilim.css           ← Ortak marka tasarımı (dokunmayın)
-    ├── css/style.css                    ← Sayfaya özel stiller
-    └── js/validation.js                  ← Canlı doğrulama, şifre ölçeri, sayaç
+    ├── css/style.css                    ← Sayfaya özel stiller + mobil düzen, tema/şifre düğmeleri
+    └── js/validation.js                  ← Canlı doğrulama, şifre ölçeri, sayaç, tema/şifre düğmeleri
 ```
 
 ### Hangi fonksiyon ne işe yarıyor?
@@ -428,6 +429,10 @@ form-validation-example/
 | `ruleCheck()` | `validation.js` | `rule_check()`'in birebir istemci karşılığı |
 | `codePointLength()` | `validation.js` | **Kod noktası** sayar — `.length` değil (astral ayrışmasının çözümü) |
 | `passwordScore()` | `validation.js` | Ölçer puanı; zorunlu kural sağlanmadıkça “Zayıf”ı geçmez |
+| `setFieldError()` | `validation.js` | Hata metnini yazan **tek** yer; `.is-shown` sınıfını da o ekler |
+| `revealField()` | `validation.js` | Hatalı alanı ekranın ortasına kaydırır, sonra odaklar (mobil klavye) |
+| `togglePassword()` | `validation.js` | Şifreyi göster/gizle; imleç konumunu korur |
+| `toggleTheme()` | `validation.js` | Koyu/açık tema; tercih `localStorage`'da |
 
 ---
 
@@ -454,7 +459,100 @@ form-validation-example/
 
 ---
 
-## 12. Örnek kullanım alanları
+## 12. Arayüz: mobil, tema ve erişilebilirlik
+
+Doğrulama mantığı 1.0.0'da yerine oturmuştu. 1.1.0 tümüyle bir **arayüz** sürümüdür: `system/` altındaki hiçbir dosya değişmedi — yani bu bölümdeki hiçbir şey güvenlik sınırına dokunmaz. Değişenler yalnızca `index.php`, `assets/css/style.css` ve `assets/js/validation.js`.
+
+Aşağıdaki maddelerin her biri telefonda **somut olarak yaşanan** bir sorunu çözer; "daha güzel dursun" diye eklenmiş süs yoktur.
+
+### iOS'ta odaklanınca sayfanın yakınlaşması
+
+Safari (iOS), yazı boyutu **16 px'ten küçük** bir alana odaklanıldığında sayfayı otomatik yakınlaştırır — ve alandan çıkınca geri almaz. Sonuç: form yatay kayar, kalan alanların yarısı ekranın dışında kalır. Tek gerçek çözüm, dokunulan alanın yazı boyutudur:
+
+```css
+@media (max-width: 575.98px) {
+    .cy-app .form-control,
+    .cy-app .form-select { font-size: 16px; }
+}
+```
+
+`<meta viewport>` içine `maximum-scale=1` yazıp yakınlaştırmayı tümden kapatmak da "işe yarar" — ama az gören bir kullanıcının sayfayı büyütmesini de engeller. Bu bir erişilebilirlik ihlalidir ve bu depoda **kullanılmadı**.
+
+### Klavye, alana göre açılsın
+
+`type` özniteliği doğrulama içindir; **hangi klavyenin açılacağını** `inputmode` söyler ve ikisi her tarayıcıda aynı şey değildir.
+
+| Alan | Eklenen | Ne değişti |
+|------|---------|------------|
+| E-posta | `inputmode="email"` `autocapitalize="none"` `autocorrect="off"` | `@` ve `.` tuşları doğrudan görünür; iOS artık adresin ilk harfini büyütmüyor ve yazılanı "düzeltmiyor" |
+| Telefon | `inputmode="tel"` | Harf klavyesi değil **tuş takımı** açılır |
+| Kullanıcı adı | `autocapitalize="none"` `spellcheck="false"` | Kural küçük harfle başlamayı şart koşuyor; klavyenin ilk harfi büyütmesi, kullanıcıyı doğrudan hata mesajına götürüyordu |
+| Ad soyad | `autocapitalize="words"` | Baş harfleri klavye kendisi büyütür |
+| Tümü | `enterkeyhint` | Enter tuşu "İleri" / "Bitti" olarak etiketlenir |
+
+### Bildirimler yukarıdan aşağı taşındı
+
+**Ölçülen sorun:** toast'lar sağ **üste** sabitlenmişti. Telefonda gönder düğmesi ekranın **altındadır**; kullanıcı düğmeye baktığı anda ekranın öbür ucunda beliren bildirimi kaçırıyordu. Artık dar ekranda alttan ve tam genişlikte gelir — parmağın ve gözün zaten bulunduğu yerden. Alt kenardaki jest çubuğunun altında kalmaması için `env(safe-area-inset-bottom)` kadar boşluk bırakılır.
+
+### Hatalı alana kaydırma
+
+`.focus()` tek başına yetmiyordu: tarayıcı alanı ekrana getiriyor, ama aynı anda açılan klavye görünür alanı yarıya indiriyor ve **hata satırı klavyenin altında kalıyordu**. Kullanıcı "bir şey oldu ama ne?" diyordu.
+
+```js
+node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+node.focus({ preventScroll: true });
+```
+
+Sıra önemlidir: `focus()` önce çağrılırsa tarayıcının kendi otomatik kaydırması bizimkinin üzerine yazar. Aynı işlem, sunucudan `422` ile dönen hatalar için de uygulanır — o hata neredeyse her zaman ekranın görünmeyen bir yerindedir.
+
+### Şifreyi göster / gizle
+
+Mobilde bir nezaket değil, gerekliliktir: küçük bir klavyede büyük harf + küçük harf + rakam zorunluluğu olan bir şifreyi **göremeden** yazmak, formun en sık terk edildiği yerdir.
+
+İki ayrıntı bilinçlidir:
+
+* **İmleç korunur.** `type` değiştirmek imleci alanın sonuna atar; kullanıcı şifrenin ortasındaki bir harfi düzeltirken göze bastıysa imleci kaybetmesi kabul edilemez. Konum okunup geri yazılır.
+* **Gönderim sonrası kapanır.** Kayıt tamamlandığında açık kalmış hiçbir şifre ekranda durmaz.
+
+Bootstrap'in `.input-group`'u **kullanılmadı**: `.is-invalid` ile birlikte kenarlık yarıçaplarını bozuyor ve `.invalid-feedback`'i yanlış yere düşürüyor. Düğme, input'un üzerine bindirilir; input tek parça kalır.
+
+### `.invalid-feedback` neden bir sınıfla yönetiliyor?
+
+Bootstrap'in hata satırı, "hemen **önceki kardeşim** `.is-invalid` mi?" diye bakar (`.form-control.is-invalid ~ .invalid-feedback`). Şifre alanları göster/gizle düğmesi yüzünden bir sarmalayıcının içine girince bu kardeşlik kırıldı ve mesaj **hiç görünmez** oldu.
+
+Çözüm, seçiciyi her yerleşime göre yeniden yazmak değil; hata metnini yazan tek fonksiyonun (`setFieldError`) `.is-shown` sınıfını da eklemesi oldu. Kural artık alanın DOM'daki yerinden bağımsız. Metin üç ayrı yerden yazılıyordu (anlık doğrulama, canlı benzersizlik yanıtı, sunucunun `422` cevabı); üçü de tek fonksiyona indirildi — aksi hâlde biri unutulacaktı.
+
+### Koyu / açık tema düğmesi
+
+`cilginyazilim.css` koyu temayı zaten destekliyordu (`prefers-color-scheme` ve `data-cy-theme`), ama kullanıcının **seçme** yolu yoktu. Başlıktaki düğme bunu ekler ve tercih `localStorage`'da saklanır.
+
+Tema, `index.php`'nin `<head>` bölümündeki **satır içi** bir blokla, sayfa çizilmeden önce uygulanır. `validation.js` sayfanın sonunda yüklenir; temayı orada uygulasaydık koyu temayı seçmiş bir kullanıcı her açılışta yarım saniyelik beyaz ekran görürdü.
+
+Seçim yapılmamışsa `data-cy-theme` özniteliği **hiç yazılmaz** — o durumda işletim sisteminin tercihi geçerlidir. İlk tıklamada "şu an hangi temadayız?" sorusu `matchMedia` ile tarayıcıya sorulur; kendi varsayımımızı yazsaydık, koyu temadaki bir kullanıcının ilk tıklaması hiçbir şeyi değiştirmemiş gibi görünürdü.
+
+`<meta name="theme-color">` iki ayrı değerle verilir, böylece mobil tarayıcının adres çubuğu da sayfanın zeminiyle aynı renge boyanır.
+
+### Yan panel mobilde katlanır
+
+"İki Katmanlı Doğrulama" paneli açıklayıcı metindir; formu doldurmak için gerekli değildir. Telefonda formun **altında** üç paragraf hâlinde durunca, gönder düğmesinden sonra gereksiz bir kaydırma kuyruğu bırakıyordu. Artık `lg` altında kapalı başlar; masaüstünde açık gelir ve katlama düğmesi hiç görünmez.
+
+### Dokunma hedefleri ve onay kutusu
+
+Tema düğmesi 44×44 px, gönder düğmesi 50 px yüksekliğinde, metin alanları 46 px. Onay kutusu 1 rem'den 1.35 rem'e büyütüldü — Bootstrap'in negatif `margin-left`'i de birlikte büyütüldü, yoksa etiket kutunun üstüne biner.
+
+"Kullanım şartları" bağlantısı eskiden `href="#"` + `onclick="return false"` idi: dokunulunca **hiçbir şey olmayan** bir bağlantı, telefonda "bozuk" izlenimi verir. Artık gerçekten bir metin açan bir modal var, ve işaretleme `<a>` değil `<button>` — çünkü yaptığı şey gezinmek değil, bir şey açmak.
+
+### Erişilebilirlik
+
+* Her alan `aria-describedby` ile kendi yardım ve hata satırına bağlandı.
+* Hata durumunda `aria-invalid="true"` yazılır: ekran okuyucu, alanın geçersiz olduğunu **rengi görerek** anlayamaz.
+* Canlı "Müsait" sonucu `role="status"` + `aria-live="polite"` ile duyurulur; yeşil tik tek başına yetmez.
+* Odak halkası `:focus-visible` ile verilir — yalnızca klavyeyle gezerken görünür, fareyle tıklayanda görünmez. Halkayı tümüyle kaldırmak (`outline: none`) klavye kullanıcısını sayfada kaybeder.
+* `viewport-fit=cover` ile çentikli ekranlarda güvenli alan boşlukları `env()` üzerinden verilir.
+
+---
+
+## 13. Örnek kullanım alanları
 
 * **Üyelik / kayıt formları** — projenin doğrudan konusu.
 * **İletişim ve talep formları** — canlı benzersizlik kontrolünü çıkarıp kalan katmanları kullanın.
@@ -472,6 +570,9 @@ MIT — dilediğiniz gibi indirip kullanabilirsiniz.
 <div align="center">
 
 **[Çılgın Yazılım](https://cilginyazilim.com)** &nbsp;·&nbsp; [github.com/CilginYazilim/form-validation-example](https://github.com/CilginYazilim/form-validation-example)
+
+Daha fazla örnek kod: **[cilginyazilim.com/kutuphane](https://cilginyazilim.com/kutuphane)**
+&nbsp;·&nbsp; Bu örneğin anlatımı: [Form Doğrulama](https://cilginyazilim.com/kutuphane/form-dogrulama)
 
 Telif © Çılgın Yazılım (cilginyazilim.com)
 

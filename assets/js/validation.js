@@ -223,11 +223,44 @@ var CyValidation = (function ($) {
      *  ARAYÜZ YARDIMCILARI
      * ============================================================== */
 
-    function showFieldState($field, result) {
-        var $feedback = $('[data-error-for="' + $field.attr('id') + '"]');
+    /**
+     * Bir alanın hata satırını yazar/siler.
+     *
+     * NEDEN AYRI BİR FONKSİYON? Hata metni ÜÇ ayrı yerden yazılıyor
+     * (anlık doğrulama, canlı benzersizlik yanıtı, sunucunun 422
+     * cevabı). Eskiden üçü de kendi satırında `.text(...)` çağırıyordu;
+     * .is-shown sınıfı eklenince üçünü de ayrı ayrı düzeltmek
+     * gerekecekti — ve biri unutulacaktı.
+     *
+     * .is-shown NEDEN GEREKLİ? Bootstrap'in .invalid-feedback'i
+     * "hemen önceki kardeşim .is-invalid mi?" diye bakar. Şifre
+     * alanları göster/gizle düğmesi yüzünden bir sarmalayıcının içine
+     * girdi ve bu kardeşlik kırıldı. Görünürlüğü sınıfla yönetmek,
+     * kuralı alanın DOM'daki yerinden bağımsız kılar (bkz. style.css).
+     */
+    function setFieldError(field, message) {
+        var $feedback = $('[data-error-for="' + field + '"]');
 
-        $field.toggleClass('is-invalid', !result.valid).toggleClass('is-valid', result.valid);
-        $feedback.text(result.valid ? '' : result.message);
+        $feedback.text(message || '').toggleClass('is-shown', !!message);
+    }
+
+    function showFieldState($field, result) {
+        $field
+            .toggleClass('is-invalid', !result.valid)
+            .toggleClass('is-valid', result.valid)
+            /* Ekran okuyucu, alanın geçersiz olduğunu rengi görerek
+             * anlayamaz; aria-invalid bunu SÖYLER. */
+            .attr('aria-invalid', result.valid ? null : 'true');
+
+        setFieldError($field.attr('id'), result.valid ? '' : result.message);
+    }
+
+    /** Bütün alanların hata/geçerlilik izlerini siler (gönderim sonrası). */
+    function clearAllFieldStates() {
+        $('.is-valid, .is-invalid').removeClass('is-valid is-invalid');
+        $('[aria-invalid]').removeAttr('aria-invalid');
+        $('[data-error-for]').text('').removeClass('is-shown');
+        $('#username_status, #email_status').empty();
     }
 
     function validateAndShow(name) {
@@ -262,6 +295,121 @@ var CyValidation = (function ($) {
     function post(data) {
         data.csrf_token = config.csrfToken;
         return $.ajax({ url: config.endpoint, method: 'POST', dataType: 'json', data: data });
+    }
+
+    /**
+     * Hatalı alanı EKRANA GETİR, sonra odakla.
+     *
+     * ÖLÇÜLEN SORUN (mobil): Gönder düğmesi telefonda sayfanın en
+     * altındadır. Formun başındaki bir alan hatalıysa .focus() tek
+     * başına yetmiyordu; tarayıcı alanı ekrana getiriyor ama aynı anda
+     * klavye açılıp görünür alanı yarıya indiriyor, hata satırı
+     * klavyenin ALTINDA kalıyordu. Kullanıcı "bir şey oldu ama ne?"
+     * diyordu. Önce alanı ekranın ORTASINA kaydırıp sonra odaklamak,
+     * hata metnini klavyenin üstünde bırakır.
+     *
+     * scrollIntoView'ı .focus()'tan ÖNCE çağırıyoruz: tersi sırada
+     * tarayıcının kendi otomatik kaydırması bizimkinin üzerine yazar.
+     */
+    function revealField($field) {
+        var node = $field[0];
+
+        if (!node) { return; }
+
+        if (typeof node.scrollIntoView === 'function') {
+            try {
+                node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (e) {
+                // Eski tarayıcılar seçenek nesnesini anlamaz.
+                node.scrollIntoView();
+            }
+        }
+
+        node.focus({ preventScroll: true });
+    }
+
+
+    /* =================================================================
+     *  ŞİFREYİ GÖSTER / GİZLE
+     * -----------------------------------------------------------------
+     *  Alan type="password" ↔ type="text" arasında geçer. Bu, mobilde
+     *  bir süs değil gerekliliktir: küçük bir klavyede büyük harf +
+     *  küçük harf + rakam zorunluluğu olan bir şifreyi göremeden yazmak,
+     *  formun en sık terk edildiği yerdir.
+     *
+     *  ODAK VE İMLEÇ KORUNUR: type değiştirmek imleci alanın SONUNA
+     *  atar. Kullanıcı şifrenin ortasında bir harfi düzeltirken göze
+     *  bastıysa imleci kaybetmesi kabul edilemez; konumu okuyup geri
+     *  yazıyoruz.
+     * ============================================================== */
+    function togglePassword($button) {
+        var $field   = $('#' + $button.data('toggle-password'));
+        var node     = $field[0];
+        var revealed = $button.attr('aria-pressed') === 'true';
+
+        if (!node) { return; }
+
+        var start = node.selectionStart;
+        var end   = node.selectionEnd;
+
+        node.type = revealed ? 'password' : 'text';
+
+        $button
+            .attr('aria-pressed', revealed ? 'false' : 'true')
+            .attr('aria-label', revealed ? 'Şifreyi göster' : 'Şifreyi gizle');
+
+        /* setSelectionRange, type="password"/"text" dışındaki alanlarda
+         * hata fırlatır; burada ikisinden biri olduğu kesin ama yine de
+         * konum okunamadıysa (null) dokunmuyoruz. */
+        if (start !== null && end !== null) {
+            try { node.setSelectionRange(start, end); } catch (e) { /* yok say */ }
+        }
+    }
+
+    /** Gönderim sonrası: açık kalmış hiçbir şifre ekranda durmasın. */
+    function hideAllPasswords() {
+        $('[data-toggle-password]').each(function () {
+            var $button = $(this);
+
+            if ($button.attr('aria-pressed') === 'true') {
+                togglePassword($button);
+            }
+        });
+    }
+
+
+    /* =================================================================
+     *  TEMA (koyu / açık)
+     * -----------------------------------------------------------------
+     *  Temanın SAYFA ÇİZİLMEDEN ÖNCE uygulanması gerekir; o iş
+     *  index.php'nin <head> bloğunda yapılır (bkz. oradaki yorum).
+     *  Burada yalnızca DEĞİŞTİRME vardır.
+     *
+     *  Seçim yapılmamışsa data-cy-theme özniteliği HİÇ YAZILMAZ:
+     *  o durumda cilginyazilim.css'teki prefers-color-scheme, yani
+     *  işletim sisteminin tercihi geçerlidir. İlk tıklamada "şu an
+     *  hangi temadayız?" sorusunu tarayıcıya soruyoruz — kendi
+     *  varsayımımızı yazsaydık, koyu temadaki bir kullanıcının ilk
+     *  tıklaması hiçbir şeyi değiştirmemiş gibi görünürdü.
+     * ============================================================== */
+    function currentTheme() {
+        var explicit = document.documentElement.getAttribute('data-cy-theme');
+
+        if (explicit === 'dark' || explicit === 'light') { return explicit; }
+
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+    }
+
+    function toggleTheme() {
+        var next = currentTheme() === 'dark' ? 'light' : 'dark';
+
+        document.documentElement.setAttribute('data-cy-theme', next);
+
+        try {
+            localStorage.setItem('cy-theme', next);
+        } catch (e) { /* Gizli sekmede yazma engellenebilir; tema yine de değişti. */ }
     }
 
 
@@ -369,8 +517,8 @@ var CyValidation = (function ($) {
                     // burada BİLEREK boş bırakılır; aksi hâlde aynı metin
                     // iki kez (kırmızı X satırı + invalid-feedback) görünürdü.
                     $status.empty();
-                    $field.removeClass('is-valid').addClass('is-invalid');
-                    $('[data-error-for="' + field + '"]').text(response.reason);
+                    $field.removeClass('is-valid').addClass('is-invalid').attr('aria-invalid', 'true');
+                    setFieldError(field, response.reason);
                 }
             }).fail(function (xhr) {
                 $status.empty();
@@ -434,6 +582,16 @@ var CyValidation = (function ($) {
         /* --- Sözleşme onayı --- */
         $('#terms').on('change', function () { validateAndShow('terms'); });
 
+        /* --- Şifreyi göster / gizle ---
+         * Delege edilmiş bağlama: iki düğme için ayrı ayrı seçici
+         * yazmak yerine tek kural. */
+        $(document).on('click', '[data-toggle-password]', function () {
+            togglePassword($(this));
+        });
+
+        /* --- Koyu / açık tema --- */
+        $('#theme_toggle').on('click', toggleTheme);
+
         /* --- Form gönderimi --- */
         $('#validation_form').on('submit', function (event) {
             event.preventDefault();
@@ -455,7 +613,7 @@ var CyValidation = (function ($) {
             });
 
             if (firstInvalid !== null) {
-                $('#' + firstInvalid).trigger('focus');
+                revealField($('#' + firstInvalid));
                 notify('Lütfen formdaki hataları düzeltin.', 'danger');
                 return;
             }
@@ -470,24 +628,31 @@ var CyValidation = (function ($) {
             .done(function (response) {
                 notify(response.description, 'success');
                 $('#validation_form')[0].reset();
-                $('.is-valid, .is-invalid').removeClass('is-valid is-invalid');
-                $('[data-error-for]').text('');
+                clearAllFieldStates();
+                hideAllPasswords();
                 updatePasswordMeter('');
-                $('#message_counter').text('0 / ' + messageMax);
-                $('#username_status, #email_status').empty();
+                $('#message_counter').text('0 / ' + messageMax).removeClass('text-danger');
             })
             .fail(function (xhr) {
                 var res = xhr.responseJSON || {};
 
                 notify(res.description || 'Kayıt oluşturulamadı.', 'danger');
 
+                var $firstServerInvalid = null;
+
                 $.each(res.errors || {}, function (field, message) {
                     var $field = $('#' + field);
                     if ($field.length) {
-                        $field.addClass('is-invalid').removeClass('is-valid');
+                        $field.addClass('is-invalid').removeClass('is-valid').attr('aria-invalid', 'true');
+                        if ($firstServerInvalid === null) { $firstServerInvalid = $field; }
                     }
-                    $('[data-error-for="' + field + '"]').text(message);
+                    setFieldError(field, message);
                 });
+
+                /* Sunucu hatası, ekranın GÖRÜNMEYEN bir yerindeki alana ait
+                 * olabilir; telefonda gönder düğmesi en altta olduğu için
+                 * bu neredeyse kesindir. Kullanıcıyı oraya götür. */
+                if ($firstServerInvalid !== null) { revealField($firstServerInvalid); }
             })
             .always(function () {
                 $button.prop('disabled', false);

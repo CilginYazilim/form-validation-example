@@ -7,6 +7,7 @@
 **Two-layer form validation — client + server, with rules from a single source.**
 Live feedback · Password strength meter · AJAX uniqueness check · TOCTOU chain
 
+[![Version](https://img.shields.io/badge/Version-1.1.0-0b5cb5?style=flat-square)](https://github.com/CilginYazilim/form-validation-example/releases/latest)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4?style=flat-square&logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.7%2B-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License](https://img.shields.io/badge/License-MIT-brightgreen?style=flat-square)](LICENSE)
@@ -393,7 +394,7 @@ Then: **`http://localhost/form-validation-example/`**
 
 ```
 form-validation-example/
-├── index.php                   ← Form; passes rules to JS
+├── index.php                   ← Form; passes rules to JS, applies the theme before paint
 ├── cy_validation.sql            ← Database setup + 60 sample records
 ├── .htaccess                     ← No directory listing, .sql/.md denied, security headers
 ├── system/
@@ -404,8 +405,8 @@ form-validation-example/
 │   └── ajax.php                       ← check_username / check_email / submit
 └── assets/
     ├── css/cilginyazilim.css           ← Shared brand design (don't touch)
-    ├── css/style.css                    ← Page-specific styles
-    └── js/validation.js                  ← Live validation, strength meter, counter
+    ├── css/style.css                    ← Page-specific styles + mobile layout, theme/password buttons
+    └── js/validation.js                  ← Live validation, strength meter, counter, theme/password buttons
 ```
 
 ### What each function does
@@ -424,6 +425,10 @@ form-validation-example/
 | `ruleCheck()` | `validation.js` | The exact client-side counterpart of `rule_check()` |
 | `codePointLength()` | `validation.js` | Counts **code points** — not `.length` (the fix for astral drift) |
 | `passwordScore()` | `validation.js` | Meter score; cannot exceed “Weak” until the mandatory rule is met |
+| `setFieldError()` | `validation.js` | The **only** place error text is written; it adds the `.is-shown` class too |
+| `revealField()` | `validation.js` | Scrolls the invalid field to the centre, then focuses it (mobile keyboard) |
+| `togglePassword()` | `validation.js` | Show/hide password; preserves the caret position |
+| `toggleTheme()` | `validation.js` | Dark/light theme; the preference lives in `localStorage` |
 
 ---
 
@@ -450,7 +455,100 @@ form-validation-example/
 
 ---
 
-## 12. Where you'd use this
+## 12. The interface: mobile, theme and accessibility
+
+The validation logic settled in 1.0.0. Version 1.1.0 is entirely an **interface** release: nothing under `system/` changed — so nothing in this section touches the security boundary. Only `index.php`, `assets/css/style.css` and `assets/js/validation.js` were modified.
+
+Every item below fixes a problem that **actually happens** on a phone; none of it is decoration.
+
+### Safari zooming in when you focus a field
+
+On iOS, Safari automatically zooms the page when you focus a field whose font size is **smaller than 16 px** — and it does not zoom back out when you leave. The form then scrolls sideways and half of the remaining fields sit off-screen. The only real fix is the font size of the field you touch:
+
+```css
+@media (max-width: 575.98px) {
+    .cy-app .form-control,
+    .cy-app .form-select { font-size: 16px; }
+}
+```
+
+Writing `maximum-scale=1` into the `<meta viewport>` tag also "works" — but it stops a low-vision user from magnifying the page at all. That is an accessibility violation, and it is **not** used in this repo.
+
+### Let the keyboard match the field
+
+The `type` attribute is for validation; **which keyboard opens** is decided by `inputmode`, and the two are not the same thing in every browser.
+
+| Field | Added | What changed |
+|-------|-------|--------------|
+| E-mail | `inputmode="email"` `autocapitalize="none"` `autocorrect="off"` | `@` and `.` are on the main keyboard; iOS no longer capitalises the first letter or "corrects" what you typed |
+| Phone | `inputmode="tel"` | A **numeric keypad** opens instead of the letter keyboard |
+| Username | `autocapitalize="none"` `spellcheck="false"` | The rule requires a lowercase first character; the keyboard capitalising it sent users straight into an error message |
+| Full name | `autocapitalize="words"` | The keyboard capitalises initials for you |
+| All | `enterkeyhint` | The Enter key is labelled "Next" / "Done" |
+
+### Notifications moved from the top to the bottom
+
+**The measured problem:** toasts were pinned to the top **right**. On a phone the submit button is at the **bottom**; the moment the user looked at the button, a notification appeared at the opposite end of the screen and was missed. On narrow screens they now slide in from the bottom, full width — where the finger and the eye already are. `env(safe-area-inset-bottom)` keeps them clear of the home indicator.
+
+### Scrolling to the invalid field
+
+`.focus()` alone was not enough: the browser brought the field on screen, but the keyboard opening at the same moment halved the visible area and **the error line ended up underneath it**. The user saw that *something* happened, but not what.
+
+```js
+node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+node.focus({ preventScroll: true });
+```
+
+The order matters: call `focus()` first and the browser's own automatic scroll overwrites yours. The same treatment is applied to errors returned by the server with `422` — those are almost always for a field that is off-screen.
+
+### Show / hide password
+
+On mobile this is not a courtesy, it is a requirement: typing a password that must contain an uppercase letter, a lowercase letter and a digit, on a small keyboard, **without seeing it**, is where forms get abandoned.
+
+Two details are deliberate:
+
+* **The caret is preserved.** Changing `type` moves the caret to the end of the field; if the user was fixing a character in the middle of the password when they hit the eye, losing the caret is not acceptable. The position is read and written back.
+* **It closes after submit.** No password is left revealed on screen once the record is created.
+
+Bootstrap's `.input-group` was **not** used: together with `.is-invalid` it breaks the border radii and puts `.invalid-feedback` in the wrong place. The button is overlaid on the input instead; the input stays one piece.
+
+### Why `.invalid-feedback` is driven by a class
+
+Bootstrap's error line asks "is my **immediately preceding sibling** `.is-invalid`?" (`.form-control.is-invalid ~ .invalid-feedback`). When the password fields moved inside a wrapper for the show/hide button, that sibling relationship broke and the message **never appeared**.
+
+The fix was not to rewrite the selector for each layout, but to have the single function that writes the error text (`setFieldError`) also add an `.is-shown` class. The rule is now independent of where the field sits in the DOM. The text used to be written from three separate places (live validation, the availability response, the server's `422`); all three now go through one function — otherwise one of them would have been forgotten.
+
+### Dark / light theme toggle
+
+`cilginyazilim.css` already supported a dark theme (`prefers-color-scheme` and `data-cy-theme`), but there was no way for the user to **choose**. The button in the header adds that, and the preference is kept in `localStorage`.
+
+The theme is applied by an **inline** block in `index.php`'s `<head>`, before the page paints. `validation.js` loads at the end of the document; applying the theme there would give anyone who prefers dark a half-second of white screen on every load.
+
+If no choice has been made, the `data-cy-theme` attribute is **not written at all** — the operating system's preference then applies. On the first click, "which theme are we in right now?" is asked of the browser via `matchMedia`; had we assumed an answer, the first click of a user already in dark mode would have appeared to do nothing.
+
+`<meta name="theme-color">` is given twice, so the mobile browser's address bar is painted the same colour as the page.
+
+### The side panel folds away on mobile
+
+The "Two-layer validation" panel is explanatory text; you do not need it to fill in the form. On a phone, sitting **below** the form as three paragraphs, it left a pointless scrolling tail after the submit button. It now starts collapsed below `lg`; on desktop it is open and the toggle is never shown.
+
+### Touch targets and the checkbox
+
+The theme button is 44×44 px, the submit button is 50 px tall, text fields are 46 px. The checkbox grew from 1 rem to 1.35 rem — and Bootstrap's negative `margin-left` grew with it, otherwise the label rides over the box.
+
+The "terms of use" link used to be `href="#"` plus `onclick="return false"`: a link that does **nothing** when tapped reads as broken on a phone. There is now a modal that really opens, and the markup is a `<button>`, not an `<a>` — because what it does is open something, not navigate.
+
+### Accessibility
+
+* Every field is tied to its own help and error line with `aria-describedby`.
+* `aria-invalid="true"` is set on failure: a screen reader cannot infer invalidity from **colour**.
+* The live "Available" result is announced via `role="status"` + `aria-live="polite"`; a green tick alone is not enough.
+* The focus ring uses `:focus-visible` — visible only when navigating by keyboard, not on mouse clicks. Removing it entirely (`outline: none`) loses keyboard users on the page.
+* `viewport-fit=cover` plus `env()` insets keep content clear of display cutouts.
+
+---
+
+## 13. Where you'd use this
 
 * **Sign-up / registration forms** — the project's direct subject.
 * **Contact and request forms** — drop the live uniqueness check and keep the rest of the layers.
@@ -468,6 +566,9 @@ MIT — download and use it however you like.
 <div align="center">
 
 **[Çılgın Yazılım](https://cilginyazilim.com)** &nbsp;·&nbsp; [github.com/CilginYazilim/form-validation-example](https://github.com/CilginYazilim/form-validation-example)
+
+More example code: **[cilginyazilim.com/kutuphane](https://cilginyazilim.com/kutuphane)**
+&nbsp;·&nbsp; This example, explained: [Form Validation](https://cilginyazilim.com/kutuphane/form-dogrulama)
 
 Copyright © Çılgın Yazılım (cilginyazilim.com)
 
