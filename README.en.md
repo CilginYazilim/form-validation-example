@@ -7,7 +7,7 @@
 **Two-layer form validation — client + server, with rules from a single source.**
 Live feedback · Password strength meter · AJAX uniqueness check · TOCTOU chain
 
-[![Version](https://img.shields.io/badge/Version-1.1.0-0b5cb5?style=flat-square)](https://github.com/CilginYazilim/form-validation-example/releases/latest)
+[![Version](https://img.shields.io/badge/Version-1.2.0-0b5cb5?style=flat-square)](https://github.com/CilginYazilim/form-validation-example/releases/latest)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4?style=flat-square&logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.7%2B-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License](https://img.shields.io/badge/License-MIT-brightgreen?style=flat-square)](LICENSE)
@@ -397,6 +397,12 @@ git clone https://github.com/CilginYazilim/form-validation-example.git
 mysql -u root -p < form-validation-example/cy_validation.sql
 ```
 
+> **Optional — your own database credentials:** run
+> `cp .env.example .env` (Windows: `copy .env.example .env`) and fill in the
+> `DB_*` lines. It runs without the file too; the defaults match a local XAMPP
+> install (`root`, empty password). `.env` is in `.gitignore`, so your password
+> never reaches the repository.
+
 Or **phpMyAdmin → Import → `cy_validation.sql` → Go**.
 
 Then: **`http://localhost/form-validation-example/`**
@@ -451,6 +457,7 @@ set this variable instead of touching the code.
 ```
 form-validation-example/
 ├── index.php                   ← Form; passes rules to JS, applies the theme before paint
+├── .env.example                 ← Database credentials (optional) — in .gitignore
 ├── cy_validation.sql            ← Database setup + 60 sample records
 ├── .htaccess                     ← No directory listing, .sql/.md denied, security headers
 ├── system/

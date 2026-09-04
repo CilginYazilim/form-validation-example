@@ -7,7 +7,7 @@
 **İstemci + sunucu çift katmanlı form doğrulama — kurallar tek kaynaktan.**
 Canlı geri bildirim · Şifre gücü ölçer · AJAX benzersizlik kontrolü · TOCTOU zinciri
 
-[![Sürüm](https://img.shields.io/badge/S%C3%BCr%C3%BCm-1.1.0-0b5cb5?style=flat-square)](https://github.com/CilginYazilim/form-validation-example/releases/latest)
+[![Sürüm](https://img.shields.io/badge/S%C3%BCr%C3%BCm-1.2.0-0b5cb5?style=flat-square)](https://github.com/CilginYazilim/form-validation-example/releases/latest)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4?style=flat-square&logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.7%2B-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Lisans](https://img.shields.io/badge/Lisans-MIT-brightgreen?style=flat-square)](LICENSE)
@@ -401,6 +401,12 @@ git clone https://github.com/CilginYazilim/form-validation-example.git
 mysql -u root -p < form-validation-example/cy_validation.sql
 ```
 
+> **İsteğe bağlı — kendi veritabanı bilgileriniz:**
+> `cp .env.example .env` (Windows: `copy .env.example .env`) deyip `DB_*`
+> satırlarını doldurun. Bu dosya olmadan da çalışır; varsayılanlar yerel bir
+> XAMPP kurulumuna (`root`, boş parola) göredir. `.env` `.gitignore`
+> içindedir — parolanız depoya gitmez.
+
 Ya da **phpMyAdmin → İçe Aktar → `cy_validation.sql` → Başlat**.
 
 Sonra: **`http://localhost/form-validation-example/`**
@@ -454,6 +460,7 @@ bir bölgedeyse bu değişkeni tanımlamanız yeterli, koda dokunmayın.
 ```
 form-validation-example/
 ├── index.php                   ← Form; kuralları JS'e aktarır, temayı çizimden önce uygular
+├── .env.example                 ← Veritabanı bilgileri (isteğe bağlı) — .gitignore içinde
 ├── cy_validation.sql            ← Veritabanı kurulumu + 60 örnek kayıt
 ├── .htaccess                     ← Dizin listeleme kapalı, .sql/.md kapalı, güvenlik başlıkları
 ├── system/
